@@ -1,0 +1,146 @@
+
+{
+    // ------------------------------------------------------------------------
+    // Common settings
+    // ------------------------------------------------------------------------
+    "files.autoSave": "afterDelay",
+    "files.exclude": {
+        "**/*.pyc": true
+    },
+    "files.defaultLanguage": "json",
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.renderWhitespace": "all",
+    "editor.renderControlCharacters": true,
+
+    // ------------------------------------------------------------------------
+    // Yaml file settings
+    // ------------------------------------------------------------------------
+    "yaml.customTags": [
+        "!And",
+        "!Base64",
+        "!Cidr",
+        "!Equals",
+        "!FindInMap",
+        "!GetAtt",
+        "!GetAZs",
+        "!If",
+        "!Join",
+        "!Not",
+        "!Or",
+        "!Ref",
+        "!ImportValue",
+        "!Ref",
+        "!Select",
+        "!Split",
+        "!Sub",
+        "!And sequence",
+        "!If sequence",
+        "!Not sequence",
+        "!Equals sequence",
+        "!Or sequence",
+        "!FindInMap sequence",
+        "!Join sequence",
+        "!Sub sequence",
+        "!ImportValue sequence",
+        "!Select sequence",
+        "!Split sequence"
+    ],
+    // Enable/disable default YAML formatter (requires restart)
+    "[yaml]": {
+        "editor.useTabStops": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.autoIndent": "none",
+        "diffEditor.ignoreTrimWhitespace": false
+    },
+    "yaml.format.enable": true,
+
+    // ------------------------------------------------------------------------
+    // JSON file settings
+    // ------------------------------------------------------------------------
+    "json.schemas": [],
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+        "editor.useTabStops": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.autoIndent": "none",
+        "diffEditor.ignoreTrimWhitespace": false
+    },
+
+    // ------------------------------------------------------------------------
+    // JS/TS file settings
+    // ------------------------------------------------------------------------
+    "js/ts.implicitProjectConfig.experimentalDecorators": true,
+    "javascript.updateImportsOnFileMove.enabled": "never",
+    "[javascript]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+    },
+    "[typescript]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+    },
+    "typescript.updateImportsOnFileMove.enabled": "always",
+
+    // ------------------------------------------------------------------------
+    // Python settings
+    // ------------------------------------------------------------------------
+    "python.testing.unittestEnabled": true,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        ".",
+        "-p",
+        "*test*.py"
+    ],
+    "python.testing.autoTestDiscoverOnSaveEnabled": false,
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.inlayHints.variableTypes": false,
+    "python.terminal.executeInFileDir": true,
+    "pythonTestExplorer.testFramework": "unittest",
+    "[python]": {
+        "editor.wordBasedSuggestions": "off",
+        "editor.formatOnType": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.autoIndent": "full",
+        "editor.useTabStops": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "pythonTestExplorer.testplanEnabled": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.completeFunctionParens": true,
+    "pylint.args": [
+        "--disable=logging-fstring-interpolation"
+    ],
+    "python.analysis.autoFormatStrings": true,
+    "autoDocstring.includeName": true,
+    "pythonIndent.trimLinesWithOnlyWhitespace": true,
+
+    // ------------------------------------------------------------------------
+    // Spell checker settings
+    // ------------------------------------------------------------------------
+    "cSpell.words": [
+        "autonumber",
+        "awscli",
+        "boto",
+        "botocore",
+        "CMOS",
+        "coeff",
+        "direnv",
+        "failfast",
+        "fargate",
+        "kaniko",
+        "mqttx",
+        "nodenv",
+        "nuki",
+        "pycache",
+        "PYTHONPATH",
+        "reactivex",
+        "tfenv",
+        "yolox"
+    ]
+}
