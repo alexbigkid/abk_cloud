@@ -1,0 +1,18 @@
+common:
+  prefix: $ABK_PRJ_NAME
+  env: $ABK_DEPLOYMENT_ENV
+  region: $ABK_DEPLOYMENT_REGION
+
+services:
+  abk_deployment_env: $ABK_DEPLOYMENT_ENV
+  abk_deployment_region: $ABK_DEPLOYMENT_REGION
+  abk_deployment_bucket: $ABK_PRJ_NAME-ci-deployment-$ABK_DEPLOYMENT_ENV-$ABK_DEPLOYMENT_REGION
+  abk_log_level: $LOG_LEVEL
+
+terraform:
+  terraformStateBootstrap:
+    terraform_state_S3_bucket_name: $ABK_PRJ_NAME-terraform-state-do-not-delete-$ABK_DEPLOYMENT_ENV-$ABK_DEPLOYMENT_REGION
+    dynamodb_terraform_lock_name: $ABK_PRJ_NAME-terraform-lock
+  serviceDeploymentBucket:
+    abk_service_deployment_bucket_name: $ABK_PRJ_NAME-ci-deployment-$ABK_DEPLOYMENT_ENV-$ABK_DEPLOYMENT_REGION
+    enable_versioning: true
