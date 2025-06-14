@@ -23,6 +23,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "abkPrivateS3Bucke
     }
   }
 }
+
 resource "aws_s3_bucket_ownership_controls" "abkPrivateS3BucketOwnershipControls" {
   bucket = aws_s3_bucket.abkPrivateS3Bucket.id
 
@@ -30,6 +31,7 @@ resource "aws_s3_bucket_ownership_controls" "abkPrivateS3BucketOwnershipControls
     object_ownership = "BucketOwnerEnforced"
   }
 }
+
 resource "aws_s3_bucket_public_access_block" "abkPrivateS3BucketPublicAccessBlock" {
   bucket = aws_s3_bucket.abkPrivateS3Bucket.id
 

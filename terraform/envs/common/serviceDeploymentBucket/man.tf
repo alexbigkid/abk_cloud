@@ -29,5 +29,5 @@ terraform {
 module "abk_s3_releases_bucket_module" {
   source                 = "../../../templates/s3-private-bucket"
   private_s3_bucket_name = var.abk_service_deployment_bucket_name
-  enable_versioning      = true
+  enable_versioning      = var.enable_versioning
 }

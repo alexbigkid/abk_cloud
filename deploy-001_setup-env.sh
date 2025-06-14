@@ -40,14 +40,24 @@ SetupTerraformVariables() {
 
     local LCL_PROJECT_NAME
     LCL_PROJECT_NAME=$(basename "$LCL_PROJECT")
-    # splitting last directory by '_' to get just the last part and strip off the number in front
-    local LCL_TERRAFORM_PRJ
-    IFS='_' read -ra LCL_TERRAFORM_PRJ <<< "$LCL_PROJECT_NAME"
-    PrintTrace "$TRACE_DEBUG" "LCL_TERRAFORM_PRJ[1] = ${LCL_TERRAFORM_PRJ[1]}"
+    
+    # Determine terraform project key name
+    local LCL_TERRAFORM_PRJ_KEY
+    if [[ "$LCL_PROJECT_NAME" =~ ^[0-9][0-9][0-9]_ ]]; then
+        # Sequential project: split by '_' and get the part after the digits
+        local LCL_TERRAFORM_PRJ
+        IFS='_' read -ra LCL_TERRAFORM_PRJ <<< "$LCL_PROJECT_NAME"
+        LCL_TERRAFORM_PRJ_KEY="${LCL_TERRAFORM_PRJ[1]}"
+        PrintTrace "$TRACE_DEBUG" "Sequential project - LCL_TERRAFORM_PRJ_KEY = $LCL_TERRAFORM_PRJ_KEY"
+    else
+        # Parallel project: use the full project name
+        LCL_TERRAFORM_PRJ_KEY="$LCL_PROJECT_NAME"
+        PrintTrace "$TRACE_DEBUG" "Parallel project - LCL_TERRAFORM_PRJ_KEY = $LCL_TERRAFORM_PRJ_KEY"
+    fi
 
     # parse config yaml file only for the project related settings
     local LCL_PROJECT_TF_VARS_JSON
-    LCL_PROJECT_TF_VARS_JSON=$(yq -o=json ".terraform.${LCL_TERRAFORM_PRJ[1]}" "$LCL_ENV_CONFIG")
+    LCL_PROJECT_TF_VARS_JSON=$(yq -o=json ".terraform.$LCL_TERRAFORM_PRJ_KEY" "$LCL_ENV_CONFIG")
     PrintTrace "$TRACE_DEBUG" "LCL_PROJECT_TF_VARS_JSON = $LCL_PROJECT_TF_VARS_JSON"
 
     # write env configured terraform vars file to project directory
@@ -61,16 +71,38 @@ SetupTerraformVariables() {
 SetupTerraformProjects() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
     local LCL_WORKING_DIR=$1
-    local LCL_ENV=$2
+    local LCL_DIR_ENV=$2        # Directory environment (common, dev, qa, prod)
+    local LCL_CONFIG_ENV=$3     # Config environment to use (dev, qa, prod)
     local LCL_EXIT_CODE=0
-    local LCL_TERRAFORM_PROJECTS
-    LCL_TERRAFORM_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_ENV" -maxdepth 1 -type d -name '[0-9][0-9][0-9]*' | sort)
+    local LCL_SEQUENTIAL_PROJECTS
+    local LCL_PARALLEL_PROJECTS
+    
+    # Skip if directory doesn't exist
+    if [ ! -d "$LCL_WORKING_DIR/$LCL_DIR_ENV" ]; then
+        PrintTrace "$TRACE_INFO" "Directory does not exist: $LCL_WORKING_DIR/$LCL_DIR_ENV"
+        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+        return "$LCL_EXIT_CODE"
+    fi
+    
+    # Find sequential projects (with triple-digit prefix)
+    LCL_SEQUENTIAL_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_DIR_ENV" -maxdepth 1 -type d -name '[0-9][0-9][0-9]*' | sort)
+    
+    # Find parallel projects (without triple-digit prefix, excluding parent directory)
+    LCL_PARALLEL_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_DIR_ENV" -maxdepth 1 -type d ! -name '[0-9][0-9][0-9]*' ! -path "$LCL_WORKING_DIR/$LCL_DIR_ENV" | sort)
 
-    PrintTrace "$TRACE_INFO" "terraform projects found:"
-    PrintTrace "$TRACE_INFO" "$LCL_TERRAFORM_PROJECTS"
+    PrintTrace "$TRACE_INFO" "Sequential terraform projects found in $LCL_DIR_ENV:"
+    PrintTrace "$TRACE_INFO" "$LCL_SEQUENTIAL_PROJECTS"
+    PrintTrace "$TRACE_INFO" "Parallel terraform projects found in $LCL_DIR_ENV:"
+    PrintTrace "$TRACE_INFO" "$LCL_PARALLEL_PROJECTS"
 
-    for PROJECT in ${LCL_TERRAFORM_PROJECTS}; do
-        SetupTerraformVariables "$PROJECT" "$LCL_ENV" || LCL_EXIT_CODE=$?
+    # Process sequential projects first
+    for PROJECT in $LCL_SEQUENTIAL_PROJECTS; do
+        SetupTerraformVariables "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
+    done
+    
+    # Process parallel projects
+    for PROJECT in $LCL_PARALLEL_PROJECTS; do
+        SetupTerraformVariables "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
     done
 
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
@@ -81,10 +113,10 @@ SetupTerraformProjects() {
 # main
 #------------------------------------------------------------------------------
 # include common library, fail if does not exist
-if [ -f $COMMON_LIB_FILE ]; then
+if [ -f "$COMMON_LIB_FILE" ]; then
 # shellcheck disable=SC1091
 # shellcheck source=../common-lib.sh
-    source $COMMON_LIB_FILE
+    source "$COMMON_LIB_FILE"
 else
     echo "ERROR: $COMMON_LIB_FILE does not exist in the local directory."
     echo "  $COMMON_LIB_FILE contains common definitions and functions"
@@ -122,7 +154,10 @@ WriteValueToConfigFile "$ENV_CONFIG_FILE" ABK_PRJ_NAME "$ABK_PRJ_NAME" || PrintU
 WriteValueToConfigFile "$ENV_CONFIG_FILE" LOG_LEVEL "$LOG_LEVEL" || PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: Failed to write LOG_LEVEL: $LOG_LEVEL to config file${NC}"
 
 
-SetupTerraformProjects "$TERRAFORM_ENVS_DIR" "$ABK_DEPLOYMENT_ENV" || PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: Setup Terraform Projects failed${NC}"
+# Setup terraform projects for common and environment-specific directories
+# Note: common projects use the actual deployment environment config file
+SetupTerraformProjects "$TERRAFORM_ENVS_DIR" "common" "$ABK_DEPLOYMENT_ENV" || PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: Setup Terraform Projects failed for common${NC}"
+SetupTerraformProjects "$TERRAFORM_ENVS_DIR" "$ABK_DEPLOYMENT_ENV" "$ABK_DEPLOYMENT_ENV" || PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: Setup Terraform Projects failed for $ABK_DEPLOYMENT_ENV${NC}"
 
 PrintTrace "$TRACE_FUNCTION" "<- $0 ($EXIT_CODE)"
 echo
