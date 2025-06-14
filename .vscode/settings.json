@@ -131,8 +131,10 @@
         "CMOS",
         "coeff",
         "direnv",
+        "esbuild",
         "failfast",
         "fargate",
+        "jsonwebtoken",
         "kaniko",
         "mqttx",
         "nodenv",
@@ -141,6 +143,7 @@
         "PYTHONPATH",
         "reactivex",
         "tfenv",
+        "tfvars",
         "yolox"
     ]
 }
