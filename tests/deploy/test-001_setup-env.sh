@@ -99,14 +99,16 @@ test_config_file_no_variables() {
     fi
     
     # Check for any remaining $ variables (should be resolved)
-    local unresolved_vars
-    unresolved_vars=$(grep -c '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" || true)
+    local unresolved_vars=0
+    if grep -q '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null; then
+        unresolved_vars=$(grep -c '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null || echo "0")
+    fi
     
     if [ "$unresolved_vars" -eq 0 ]; then
         print_test_result "$test_name" "PASS"
     else
         local vars_found
-        vars_found=$(grep '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" || true)
+        vars_found=$(grep '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null || echo "none")
         print_test_result "$test_name" "FAIL" "Found $unresolved_vars unresolved variables: $vars_found"
     fi
 }
