@@ -177,15 +177,15 @@ jobs:
         with:
           directory: terraform/
           framework: terraform
-          output_format: sarif
-          output_file_path: reports/results.sarif
+          output_format: cli
           soft_fail: true
 
-      - name: Upload Checkov Results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: reports/results.sarif
+      # Disabled until GitHub Advanced Security is enabled
+      # - name: Upload Checkov Results
+      #   if: always()
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: reports/results.sarif
 
       - name: Scan for secrets
         uses: gitleaks/gitleaks-action@v2
