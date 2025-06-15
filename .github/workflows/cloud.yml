@@ -47,16 +47,14 @@ jobs:
       - name: Setup environment variables
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "DEPLOY_ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
-            echo "DEPLOY_REGION=${{ github.event.inputs.region }}" >> $GITHUB_ENV
+            echo "ABK_DEPLOYMENT_ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+            echo "ABK_DEPLOYMENT_REGION=${{ github.event.inputs.region }}" >> $GITHUB_ENV
           else
-            echo "DEPLOY_ENV=${{ matrix.env }}" >> $GITHUB_ENV
-            echo "DEPLOY_REGION=${{ matrix.region }}" >> $GITHUB_ENV
+            echo "ABK_DEPLOYMENT_ENV=${{ matrix.env }}" >> $GITHUB_ENV
+            echo "ABK_DEPLOYMENT_REGION=${{ matrix.region }}" >> $GITHUB_ENV
           fi
 
-          echo "ABK_DEPLOYMENT_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
           echo "ABK_PRJ_NAME=${{ vars.ABK_PRJ_NAME }}" >> $GITHUB_ENV
-          echo "ABK_DEPLOYMENT_REGION=${{ vars.ABK_DEPLOYMENT_REGION }}" >> $GITHUB_ENV
           echo "LOG_LEVEL=info" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
@@ -64,7 +62,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.ABK_DEPLOYMENT_REGION }}
+          aws-region: ${{ env.ABK_DEPLOYMENT_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -80,8 +78,8 @@ jobs:
       - name: Deploy Infrastructure
         id: deploy
         run: |
-          echo "Deploying infrastructure to ${{ env.DEPLOY_ENV }} in ${{ env.DEPLOY_REGION }}..."
-          ./deploy.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "Deploying infrastructure to ${{ env.ABK_DEPLOYMENT_ENV }} in ${{ env.ABK_DEPLOYMENT_REGION }}..."
+          ./deploy.sh ${{ env.ABK_DEPLOYMENT_ENV }} ${{ env.ABK_DEPLOYMENT_REGION }}
           echo "deploy_status=success" >> $GITHUB_OUTPUT
 
       - name: Validate Deployment
@@ -89,7 +87,7 @@ jobs:
         if: steps.deploy.outputs.deploy_status == 'success'
         run: |
           echo "Validating deployment..."
-          ./tests/deploy/test-deploy.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          ./tests/deploy/test-deploy.sh ${{ env.ABK_DEPLOYMENT_ENV }} ${{ env.ABK_DEPLOYMENT_REGION }}
           echo "validation_status=success" >> $GITHUB_OUTPUT
 
       - name: Wait for Infrastructure Stabilization
@@ -102,8 +100,8 @@ jobs:
         id: remove
         if: always() && (steps.deploy.outputs.deploy_status == 'success' || steps.validate_deploy.outputs.validation_status == 'success')
         run: |
-          echo "Removing infrastructure from ${{ env.DEPLOY_ENV }} in ${{ env.DEPLOY_REGION }}..."
-          ./remove.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "Removing infrastructure from ${{ env.ABK_DEPLOYMENT_ENV }} in ${{ env.ABK_DEPLOYMENT_REGION }}..."
+          ./remove.sh ${{ env.ABK_DEPLOYMENT_ENV }} ${{ env.ABK_DEPLOYMENT_REGION }}
           echo "remove_status=success" >> $GITHUB_OUTPUT
 
       - name: Validate Removal
@@ -111,16 +109,16 @@ jobs:
         if: always() && steps.remove.outputs.remove_status == 'success'
         run: |
           echo "Validating removal..."
-          ./tests/remove/test-remove.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          ./tests/remove/test-remove.sh ${{ env.ABK_DEPLOYMENT_ENV }} ${{ env.ABK_DEPLOYMENT_REGION }}
           echo "cleanup_validation_status=success" >> $GITHUB_OUTPUT
 
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-logs-${{ env.DEPLOY_ENV }}-${{ env.DEPLOY_REGION }}
+          name: deployment-logs-${{ env.ABK_DEPLOYMENT_ENV }}-${{ env.ABK_DEPLOYMENT_REGION }}
           path: |
-            config.${{ env.DEPLOY_ENV }}.yml
+            config.${{ env.ABK_DEPLOYMENT_ENV }}.yml
             terraform/envs/**/terraform.tfvars.json
           retention-days: 7
 
@@ -162,8 +160,8 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** ${{ env.DEPLOY_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.ABK_DEPLOYMENT_ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.ABK_DEPLOYMENT_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
 
   security-scan:
