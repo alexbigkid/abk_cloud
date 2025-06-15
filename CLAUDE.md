@@ -168,3 +168,21 @@ Required variables that must be set:
 - `ABK_PRJ_NAME`: Project name prefix for resource naming
 - `LOG_LEVEL`: Logging level for deployment scripts
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: AWS credentials
+
+## Deployment Strategy for Terraform and Services
+
+### Deployment Process
+The deployment of Terraform modules and services follows a specific sequential strategy:
+
+1. Deploy Terraform modules sequentially in `envs/common` directory, starting with modules prefixed with triple digits (e.g., `000_`, `001_`)
+2. Move to the sequential deployment of the target environment (dev, qa, or prod)
+3. Deploy Terraform modules without triple-digit prefixes from the common folder in parallel using the `parallel` tool
+4. Finally, deploy Terraform modules from the current environment directory (dev, qa, or prod)
+
+This strategy will also be applied to the services directory when deploying services, ensuring a controlled and predictable infrastructure and service deployment process.
+
+### Deployment Script Requirements (`@deploy-002_terraform.sh`)
+- Include clear entry and exit statements for each function
+- Handle sequential and parallel deployment of Terraform modules
+- Pay special attention to modules prefixed with triple digits to ensure correct order of deployment
+- Support deployment across different environments (dev, qa, prod)
