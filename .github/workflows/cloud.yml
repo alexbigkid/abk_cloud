@@ -30,8 +30,8 @@ env:
   DEFAULT_REGION: us-west-2
 
 jobs:
-  infrastructure-pipeline:
-    name: Infrastructure Pipeline
+  cloud-pipeline:
+    name: Cloud Pipeline
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -167,7 +167,7 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    needs: infrastructure-pipeline
+    needs: cloud-pipeline
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

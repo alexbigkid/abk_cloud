@@ -135,10 +135,12 @@ test_terraform_vars_files_created() {
     local test_name="Terraform tfvars files created"
     local missing_files=()
     local found_files=0
+    local expected_projects=0
     
     # Check common directory
     if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
         while IFS= read -r -d '' project_dir; do
+            ((expected_projects++))
             local tfvars_file="$project_dir/terraform.tfvars.json"
             if [ -f "$tfvars_file" ]; then
                 ((found_files++))
@@ -148,22 +150,29 @@ test_terraform_vars_files_created() {
         done < <(find "$TERRAFORM_ENVS_DIR/common" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/common" -print0)
     fi
     
-    # Check environment-specific directory
+    # Check environment-specific directory (only if it contains projects)
     if [ -d "$TERRAFORM_ENVS_DIR/$TEST_ENV" ]; then
-        while IFS= read -r -d '' project_dir; do
-            local tfvars_file="$project_dir/terraform.tfvars.json"
-            if [ -f "$tfvars_file" ]; then
-                ((found_files++))
-            else
-                missing_files+=("$tfvars_file")
-            fi
-        done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" -print0)
+        local env_projects
+        env_projects=$(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" | wc -l)
+        if [ "$env_projects" -gt 0 ]; then
+            while IFS= read -r -d '' project_dir; do
+                ((expected_projects++))
+                local tfvars_file="$project_dir/terraform.tfvars.json"
+                if [ -f "$tfvars_file" ]; then
+                    ((found_files++))
+                else
+                    missing_files+=("$tfvars_file")
+                fi
+            done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" -print0)
+        fi
     fi
     
     if [ ${#missing_files[@]} -eq 0 ] && [ $found_files -gt 0 ]; then
         print_test_result "$test_name" "PASS" "Found $found_files terraform.tfvars.json files"
+    elif [ $expected_projects -eq 0 ]; then
+        print_test_result "$test_name" "FAIL" "No terraform projects found in common or $TEST_ENV directories"
     else
-        local details="Found $found_files files"
+        local details="Found $found_files files, expected $expected_projects"
         if [ ${#missing_files[@]} -gt 0 ]; then
             details="$details, Missing: ${missing_files[*]}"
         fi

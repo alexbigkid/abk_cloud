@@ -134,6 +134,12 @@ test_terraform_vars_files_removed() {
     local test_name="Terraform tfvars files removed"
     local remaining_files=()
     
+    # Check if terraform envs directory exists
+    if [ ! -d "$TERRAFORM_ENVS_DIR" ]; then
+        print_test_result "$test_name" "PASS" "Terraform envs directory does not exist"
+        return
+    fi
+    
     # Check if any terraform.tfvars.json files remain
     while IFS= read -r -d '' tfvars_file; do
         remaining_files+=("$tfvars_file")
