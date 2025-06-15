@@ -13,6 +13,7 @@ InstallRequiredToolsUsingBrew() {
         jq
         parallel
         # serverless
+        shellcheck
         terraform
         yq
     )
@@ -21,6 +22,7 @@ InstallRequiredToolsUsingBrew() {
         jq
         parallel
         # serverless
+        shellcheck
         terraform
         yq
     )
@@ -51,6 +53,7 @@ InstallRequiredToolsUsingApt() {
         aws
         jq
         parallel
+        shellcheck
         terraform
         yq
     )
@@ -58,6 +61,7 @@ InstallRequiredToolsUsingApt() {
         awscli
         jq
         parallel
+        shellcheck
         terraform
         yq
     )

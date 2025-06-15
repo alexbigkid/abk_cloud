@@ -1,4 +1,8 @@
 # abk_cloud
+
+[![Cloud Infrastructure CI/CD](https://github.com/abk/abk_cloud/actions/workflows/cloud.yml/badge.svg)](https://github.com/abk/abk_cloud/actions/workflows/cloud.yml)
+[![Security Scan](https://github.com/abk/abk_cloud/actions/workflows/cloud.yml/badge.svg?event=push&label=security-scan)](https://github.com/abk/abk_cloud/actions/workflows/cloud.yml)
+
 ABK Cloud template - for cloud infrastructure projects
 
 [TOC]

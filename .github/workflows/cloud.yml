@@ -1,0 +1,205 @@
+name: Cloud Infrastructure CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - qa
+        - prod
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-west-2'
+        type: choice
+        options:
+        - us-west-2
+        - us-east-1
+
+env:
+  DEFAULT_ENV: dev
+  DEFAULT_REGION: us-west-2
+
+jobs:
+  infrastructure-pipeline:
+    name: Infrastructure Pipeline
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - env: dev
+            region: us-west-2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment variables
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "DEPLOY_ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+            echo "DEPLOY_REGION=${{ github.event.inputs.region }}" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ENV=${{ matrix.env }}" >> $GITHUB_ENV
+            echo "DEPLOY_REGION=${{ matrix.region }}" >> $GITHUB_ENV
+          fi
+
+          echo "ABK_DEPLOYMENT_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
+          echo "ABK_PRJ_NAME=abk-ci-test" >> $GITHUB_ENV
+          echo "LOG_LEVEL=info" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.DEPLOY_REGION }}
+
+      - name: Install required tools
+        run: ./install-tools.sh
+
+      - name: Validate all shell scripts
+        run: find . -name "*.sh" -type f -exec shellcheck {} \;
+
+      - name: Deploy Infrastructure
+        id: deploy
+        run: |
+          echo "Deploying infrastructure to ${{ env.DEPLOY_ENV }} in ${{ env.DEPLOY_REGION }}..."
+          ./deploy.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "deploy_status=success" >> $GITHUB_OUTPUT
+
+      - name: Validate Deployment
+        id: validate_deploy
+        if: steps.deploy.outputs.deploy_status == 'success'
+        run: |
+          echo "Validating deployment..."
+          ./tests/deploy/test-deploy.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "validation_status=success" >> $GITHUB_OUTPUT
+
+      - name: Wait for Infrastructure Stabilization
+        if: steps.validate_deploy.outputs.validation_status == 'success'
+        run: |
+          echo "Waiting for infrastructure to stabilize..."
+          sleep 30
+
+      - name: Remove Infrastructure
+        id: remove
+        if: always() && (steps.deploy.outputs.deploy_status == 'success' || steps.validate_deploy.outputs.validation_status == 'success')
+        run: |
+          echo "Removing infrastructure from ${{ env.DEPLOY_ENV }} in ${{ env.DEPLOY_REGION }}..."
+          ./remove.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "remove_status=success" >> $GITHUB_OUTPUT
+
+      - name: Validate Removal
+        id: validate_remove
+        if: always() && steps.remove.outputs.remove_status == 'success'
+        run: |
+          echo "Validating removal..."
+          ./tests/remove/test-remove.sh ${{ env.DEPLOY_ENV }} ${{ env.DEPLOY_REGION }}
+          echo "cleanup_validation_status=success" >> $GITHUB_OUTPUT
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs-${{ env.DEPLOY_ENV }}-${{ env.DEPLOY_REGION }}
+          path: |
+            config.${{ env.DEPLOY_ENV }}.yml
+            terraform/envs/**/terraform.tfvars.json
+          retention-days: 7
+
+      - name: Pipeline Summary
+        if: always()
+        run: |
+          echo "## Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.deploy.outputs.deploy_status }}" = "success" ]; then
+            echo "| Deploy | Success |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Deploy | Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.validate_deploy.outputs.validation_status }}" = "success" ]; then
+            echo "| Deploy Validation | Success |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.validate_deploy.outcome }}" = "skipped" ]; then
+            echo "| Deploy Validation | Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Deploy Validation | Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.remove.outputs.remove_status }}" = "success" ]; then
+            echo "| Remove | Success |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.remove.outcome }}" = "skipped" ]; then
+            echo "| Remove | Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Remove | Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.validate_remove.outputs.cleanup_validation_status }}" = "success" ]; then
+            echo "| Remove Validation | Success |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.validate_remove.outcome }}" = "skipped" ]; then
+            echo "| Remove Validation | Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Remove Validation | Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.DEPLOY_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: infrastructure-pipeline
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov Security Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+          output_file_path: reports/results.sarif
+          soft_fail: true
+
+      - name: Upload Checkov Results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/results.sarif
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notification:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    if: always()
+    steps:
+      - name: Pipeline Status
+        run: |
+          if [ "${{ needs.security-scan.result }}" = "success" ]; then
+            echo "Pipeline completed successfully!"
+            echo "STATUS=SUCCESS" >> $GITHUB_ENV
+          else
+            echo "Pipeline failed or had issues"
+            echo "STATUS=FAILURE" >> $GITHUB_ENV
+            echo "Security: ${{ needs.security-scan.result }}"
+          fi
