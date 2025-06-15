@@ -62,11 +62,12 @@ print_test_summary() {
     
     if [ $TESTS_FAILED -gt 0 ]; then
         echo
-        echo "Failed Tests:"
+        echo "❌ FAILED TESTS:"
         for test in "${FAILED_TESTS[@]}"; do
             echo "  - $test"
         done
         echo
+        echo "❌ TEST SUITE FAILED"
         exit 1
     else
         echo
@@ -276,11 +277,17 @@ main() {
     echo "Running tests..."
     
     # Run all tests
+    echo "🔍 Running test_config_file_created..."
     test_config_file_created
+    echo "🔍 Running test_config_file_no_variables..."
     test_config_file_no_variables
+    echo "🔍 Running test_config_file_content..."
     test_config_file_content
+    echo "🔍 Running test_terraform_vars_files_created..."
     test_terraform_vars_files_created
+    echo "🔍 Running test_terraform_vars_valid_json..."
     test_terraform_vars_valid_json
+    echo "🔍 Running test_terraform_vars_content..."
     test_terraform_vars_content
     
     print_test_summary
