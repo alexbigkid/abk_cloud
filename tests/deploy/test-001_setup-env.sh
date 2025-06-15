@@ -256,12 +256,12 @@ main() {
         exit 1
     fi
     
-    # Set required environment variables for the script
+    # Set required environment variables for the script (only if not already set)
     export ABK_DEPLOYMENT_ENV="$TEST_ENV"
-    export ABK_PRJ_NAME="test-project"
-    export LOG_LEVEL="debug"
-    export AWS_ACCESS_KEY_ID="test-key"
-    export AWS_SECRET_ACCESS_KEY="test-secret"
+    export ABK_PRJ_NAME="${ABK_PRJ_NAME:-test-project}"
+    export LOG_LEVEL="${LOG_LEVEL:-debug}"
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test-key}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test-secret}"
     
     echo "Running deploy-001_setup-env.sh..."
     # Change to project root to run the script

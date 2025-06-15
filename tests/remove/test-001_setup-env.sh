@@ -83,12 +83,12 @@ print_test_summary() {
 setup_test_files() {
     echo "Setting up test files..."
     
-    # Set required environment variables for the scripts
+    # Set required environment variables for the scripts (only if not already set)
     export ABK_DEPLOYMENT_ENV="$TEST_ENV"
-    export ABK_PRJ_NAME="test-project"
-    export LOG_LEVEL="debug"
-    export AWS_ACCESS_KEY_ID="test-key"
-    export AWS_SECRET_ACCESS_KEY="test-secret"
+    export ABK_PRJ_NAME="${ABK_PRJ_NAME:-test-project}"
+    export LOG_LEVEL="${LOG_LEVEL:-debug}"
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test-key}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test-secret}"
     
     # First run deploy script to create files
     echo "Running deploy script to create test files..."
