@@ -153,6 +153,7 @@ Provides standardized functions for:
 - Follow established parameter validation pattern
 - Quote all variables to prevent word splitting
 - Use standardized exit codes from `common-lib.sh`
+- **Parameter Consistency**: All deployment scripts must accept both environment and region parameters for consistency, even if the region parameter is not actively used
 
 ### Environment Management
 - Set `ABK_DEPLOYMENT_ENV` in `.envrc` file

@@ -74,8 +74,7 @@ SetupTerraformProjects() {
     local LCL_DIR_ENV=$2        # Directory environment (common, dev, qa, prod)
     local LCL_CONFIG_ENV=$3     # Config environment to use (dev, qa, prod)
     local LCL_EXIT_CODE=0
-    local LCL_SEQUENTIAL_PROJECTS
-    local LCL_PARALLEL_PROJECTS
+    local LCL_TERRAFORM_PROJECTS
     
     # Skip if directory doesn't exist
     if [ ! -d "$LCL_WORKING_DIR/$LCL_DIR_ENV" ]; then
@@ -84,24 +83,14 @@ SetupTerraformProjects() {
         return "$LCL_EXIT_CODE"
     fi
     
-    # Find sequential projects (with triple-digit prefix)
-    LCL_SEQUENTIAL_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_DIR_ENV" -maxdepth 1 -type d -name '[0-9][0-9][0-9]*' | sort)
-    
-    # Find parallel projects (without triple-digit prefix, excluding parent directory)
-    LCL_PARALLEL_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_DIR_ENV" -maxdepth 1 -type d ! -name '[0-9][0-9][0-9]*' ! -path "$LCL_WORKING_DIR/$LCL_DIR_ENV" | sort)
+    # Find all terraform project directories (excluding parent directory)
+    LCL_TERRAFORM_PROJECTS=$(find "$LCL_WORKING_DIR/$LCL_DIR_ENV" -maxdepth 1 -type d ! -path "$LCL_WORKING_DIR/$LCL_DIR_ENV" | sort)
 
-    PrintTrace "$TRACE_INFO" "Sequential terraform projects found in $LCL_DIR_ENV:"
-    PrintTrace "$TRACE_INFO" "$LCL_SEQUENTIAL_PROJECTS"
-    PrintTrace "$TRACE_INFO" "Parallel terraform projects found in $LCL_DIR_ENV:"
-    PrintTrace "$TRACE_INFO" "$LCL_PARALLEL_PROJECTS"
+    PrintTrace "$TRACE_INFO" "Terraform projects found in $LCL_DIR_ENV:"
+    PrintTrace "$TRACE_INFO" "$LCL_TERRAFORM_PROJECTS"
 
-    # Process sequential projects first
-    for PROJECT in $LCL_SEQUENTIAL_PROJECTS; do
-        SetupTerraformVariables "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
-    done
-    
-    # Process parallel projects
-    for PROJECT in $LCL_PARALLEL_PROJECTS; do
+    # Process all terraform projects
+    for PROJECT in $LCL_TERRAFORM_PROJECTS; do
         SetupTerraformVariables "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
     done
 
