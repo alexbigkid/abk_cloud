@@ -38,7 +38,7 @@ print_test_result() {
     local test_name="$1"
     local result="$2"
     local details="${3:-}"
-    
+
     if [ "$result" = "PASS" ]; then
         echo "✅ PASS: $test_name"
         TESTS_PASSED=$((TESTS_PASSED + 1))
@@ -59,7 +59,7 @@ print_test_summary() {
     echo "=========================================="
     echo "Tests Passed: $TESTS_PASSED"
     echo "Tests Failed: $TESTS_FAILED"
-    
+
     if [ $TESTS_FAILED -gt 0 ]; then
         echo
         echo "❌ FAILED TESTS:"
@@ -82,28 +82,31 @@ print_test_summary() {
 #------------------------------------------------------------------------------
 test_config_file_created() {
     local test_name="Config file created"
-    
+    echo "-> ${FUNCNAME[0]}"
+
     if [ -f "$EXPECTED_CONFIG_FILE" ]; then
         print_test_result "$test_name" "PASS"
     else
         print_test_result "$test_name" "FAIL" "File $EXPECTED_CONFIG_FILE does not exist"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 test_config_file_no_variables() {
     local test_name="Config file has no unresolved variables"
-    
+    echo "-> ${FUNCNAME[0]}"
+
     if [ ! -f "$EXPECTED_CONFIG_FILE" ]; then
         print_test_result "$test_name" "FAIL" "Config file does not exist"
         return
     fi
-    
+
     # Check for any remaining $ variables (should be resolved)
     local unresolved_vars=0
     if grep -q '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null; then
         unresolved_vars=$(grep -c '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null || echo "0")
     fi
-    
+
     if [ "$unresolved_vars" -eq 0 ]; then
         print_test_result "$test_name" "PASS"
     else
@@ -111,27 +114,30 @@ test_config_file_no_variables() {
         vars_found=$(grep '\$[A-Z_][A-Z0-9_]*' "$EXPECTED_CONFIG_FILE" 2>/dev/null || echo "none")
         print_test_result "$test_name" "FAIL" "Found $unresolved_vars unresolved variables: $vars_found"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 test_config_file_content() {
     local test_name="Config file contains expected values"
-    
+    echo "-> ${FUNCNAME[0]}"
+
     if [ ! -f "$EXPECTED_CONFIG_FILE" ]; then
         print_test_result "$test_name" "FAIL" "Config file does not exist"
         return
     fi
-    
+
     # Check for expected environment and region values
     local has_env
     local has_region
     has_env=$(grep -c "abk_deployment_env: $TEST_ENV" "$EXPECTED_CONFIG_FILE" || true)
     has_region=$(grep -c "abk_deployment_region: $TEST_REGION" "$EXPECTED_CONFIG_FILE" || true)
-    
+
     if [ "$has_env" -gt 0 ] && [ "$has_region" -gt 0 ]; then
         print_test_result "$test_name" "PASS"
     else
         print_test_result "$test_name" "FAIL" "Missing expected env ($has_env) or region ($has_region) values"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 test_terraform_vars_files_created() {
@@ -139,21 +145,29 @@ test_terraform_vars_files_created() {
     local missing_files=()
     local found_files=0
     local expected_projects=0
-    
+    echo "-> ${FUNCNAME[0]}"
+
     # Check common directory
+    echo "  Checking common directory: $TERRAFORM_ENVS_DIR/common"
     if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
+        echo "  Common directory exists"
         while IFS= read -r project_dir; do
             [ -z "$project_dir" ] && continue
-            ((expected_projects++))
+            echo "  Processing project: $project_dir"
+            expected_projects=$((expected_projects + 1))
             local tfvars_file="$project_dir/terraform.tfvars.json"
             if [ -f "$tfvars_file" ]; then
-                ((found_files++))
+                echo "  Found tfvars: $tfvars_file"
+                found_files=$((found_files + 1))
             else
+                echo "  Missing tfvars: $tfvars_file"
                 missing_files+=("$tfvars_file")
             fi
         done < <(find "$TERRAFORM_ENVS_DIR/common" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/common")
+    else
+        echo "  Common directory does not exist"
     fi
-    
+
     # Check environment-specific directory (only if it contains projects)
     if [ -d "$TERRAFORM_ENVS_DIR/$TEST_ENV" ]; then
         local env_projects
@@ -171,7 +185,9 @@ test_terraform_vars_files_created() {
             done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV")
         fi
     fi
-    
+
+    echo "  Summary: expected=$expected_projects, found=$found_files, missing=${#missing_files[@]}"
+
     if [ ${#missing_files[@]} -eq 0 ] && [ $found_files -gt 0 ]; then
         print_test_result "$test_name" "PASS" "Found $found_files terraform.tfvars.json files"
     elif [ $expected_projects -eq 0 ]; then
@@ -183,13 +199,15 @@ test_terraform_vars_files_created() {
         fi
         print_test_result "$test_name" "FAIL" "$details"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 test_terraform_vars_valid_json() {
     local test_name="Terraform tfvars files contain valid JSON"
     local invalid_files=()
     local valid_files=0
-    
+    echo "-> ${FUNCNAME[0]}"
+
     # Find all terraform.tfvars.json files
     while IFS= read -r tfvars_file; do
         [ -z "$tfvars_file" ] && continue
@@ -199,7 +217,7 @@ test_terraform_vars_valid_json() {
             invalid_files+=("$tfvars_file")
         fi
     done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f 2>/dev/null || true)
-    
+
     if [ ${#invalid_files[@]} -eq 0 ] && [ $valid_files -gt 0 ]; then
         print_test_result "$test_name" "PASS" "All $valid_files tfvars files contain valid JSON"
     else
@@ -209,13 +227,15 @@ test_terraform_vars_valid_json() {
         fi
         print_test_result "$test_name" "FAIL" "$details"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 test_terraform_vars_content() {
     local test_name="Terraform tfvars files contain expected content"
     local files_with_content=0
     local empty_files=()
-    
+    echo "-> ${FUNCNAME[0]}"
+
     # Find all terraform.tfvars.json files and check content
     while IFS= read -r tfvars_file; do
         [ -z "$tfvars_file" ] && continue
@@ -230,7 +250,7 @@ test_terraform_vars_content() {
             empty_files+=("$tfvars_file (empty)")
         fi
     done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f 2>/dev/null || true)
-    
+
     if [ ${#empty_files[@]} -eq 0 ] && [ $files_with_content -gt 0 ]; then
         print_test_result "$test_name" "PASS" "$files_with_content files contain expected content"
     else
@@ -240,6 +260,7 @@ test_terraform_vars_content() {
         fi
         print_test_result "$test_name" "FAIL" "$details"
     fi
+    echo "<- ${FUNCNAME[0]}"
 }
 
 #------------------------------------------------------------------------------
@@ -247,25 +268,25 @@ test_terraform_vars_content() {
 #------------------------------------------------------------------------------
 main() {
     print_test_header
-    
+
     # Verify prerequisites
     if [ ! -f "$COMMON_LIB_FILE" ]; then
         echo "❌ ERROR: $COMMON_LIB_FILE not found at $COMMON_LIB_FILE"
         exit 1
     fi
-    
+
     if [ ! -f "$DEPLOY_SCRIPT" ]; then
         echo "❌ ERROR: deploy-001_setup-env.sh not found at $DEPLOY_SCRIPT"
         exit 1
     fi
-    
+
     # Set required environment variables for the script (only if not already set)
     export ABK_DEPLOYMENT_ENV="$TEST_ENV"
     export ABK_PRJ_NAME="${ABK_PRJ_NAME:-test-project}"
     export LOG_LEVEL="${LOG_LEVEL:-debug}"
     export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test-key}"
     export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test-secret}"
-    
+
     echo "Running deploy-001_setup-env.sh..."
     # Change to project root to run the script
     if (cd "$PROJECT_ROOT" && ./deploy-001_setup-env.sh "$TEST_ENV" "$TEST_REGION"); then
@@ -274,24 +295,18 @@ main() {
         echo "❌ deploy-001_setup-env.sh failed to execute"
         exit 1
     fi
-    
+
     echo
     echo "Running tests..."
-    
+
     # Run all tests
-    echo "🔍 Running test_config_file_created..."
     test_config_file_created
-    echo "🔍 Running test_config_file_no_variables..."
     test_config_file_no_variables
-    echo "🔍 Running test_config_file_content..."
     test_config_file_content
-    echo "🔍 Running test_terraform_vars_files_created..."
     test_terraform_vars_files_created
-    echo "🔍 Running test_terraform_vars_valid_json..."
     test_terraform_vars_valid_json
-    echo "🔍 Running test_terraform_vars_content..."
     test_terraform_vars_content
-    
+
     print_test_summary
 }
 
