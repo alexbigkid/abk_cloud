@@ -41,13 +41,13 @@ print_test_result() {
     
     if [ "$result" = "PASS" ]; then
         echo "✅ PASS: $test_name"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo "❌ FAIL: $test_name"
         if [ -n "$details" ]; then
             echo "   Details: $details"
         fi
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         FAILED_TESTS+=("$test_name")
     fi
 }
@@ -280,18 +280,17 @@ main() {
     
     # Run all tests
     echo "🔍 Running test_config_file_created..."
-    test_config_file_created || echo "❌ test_config_file_created failed"
+    test_config_file_created
     echo "🔍 Running test_config_file_no_variables..."
-    # Temporarily skip this test to identify the issue
-    echo "⏭️  SKIP: test_config_file_no_variables (debugging)"
+    test_config_file_no_variables
     echo "🔍 Running test_config_file_content..."
-    test_config_file_content || echo "❌ test_config_file_content failed"
+    test_config_file_content
     echo "🔍 Running test_terraform_vars_files_created..."
-    test_terraform_vars_files_created || echo "❌ test_terraform_vars_files_created failed"
+    test_terraform_vars_files_created
     echo "🔍 Running test_terraform_vars_valid_json..."
-    test_terraform_vars_valid_json || echo "❌ test_terraform_vars_valid_json failed"
+    test_terraform_vars_valid_json
     echo "🔍 Running test_terraform_vars_content..."
-    test_terraform_vars_content || echo "❌ test_terraform_vars_content failed"
+    test_terraform_vars_content
     
     print_test_summary
 }
