@@ -300,12 +300,12 @@ main() {
     echo "Running tests..."
 
     # Run all tests
-    test_config_file_created
-    test_config_file_no_variables
-    test_config_file_content
-    test_terraform_vars_files_created
-    test_terraform_vars_valid_json
-    test_terraform_vars_content
+    test_config_file_created || echo "❌ test_config_file_created"
+    test_config_file_no_variables || echo "❌ test_config_file_no_variables"
+    test_config_file_content || echo "❌ test_config_file_content"
+    test_terraform_vars_files_created || echo "❌ test_terraform_vars_files_created"
+    test_terraform_vars_valid_json || echo "❌ test_terraform_vars_valid_json"
+    test_terraform_vars_content || echo "❌ test_terraform_vars_content"
 
     print_test_summary
 }
