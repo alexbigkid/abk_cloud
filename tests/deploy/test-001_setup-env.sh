@@ -139,7 +139,8 @@ test_terraform_vars_files_created() {
     
     # Check common directory
     if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
-        while IFS= read -r -d '' project_dir; do
+        while IFS= read -r project_dir; do
+            [ -z "$project_dir" ] && continue
             ((expected_projects++))
             local tfvars_file="$project_dir/terraform.tfvars.json"
             if [ -f "$tfvars_file" ]; then
@@ -147,7 +148,7 @@ test_terraform_vars_files_created() {
             else
                 missing_files+=("$tfvars_file")
             fi
-        done < <(find "$TERRAFORM_ENVS_DIR/common" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/common" -print0)
+        done < <(find "$TERRAFORM_ENVS_DIR/common" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/common")
     fi
     
     # Check environment-specific directory (only if it contains projects)
@@ -155,7 +156,8 @@ test_terraform_vars_files_created() {
         local env_projects
         env_projects=$(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" | wc -l)
         if [ "$env_projects" -gt 0 ]; then
-            while IFS= read -r -d '' project_dir; do
+            while IFS= read -r project_dir; do
+                [ -z "$project_dir" ] && continue
                 ((expected_projects++))
                 local tfvars_file="$project_dir/terraform.tfvars.json"
                 if [ -f "$tfvars_file" ]; then
@@ -163,7 +165,7 @@ test_terraform_vars_files_created() {
                 else
                     missing_files+=("$tfvars_file")
                 fi
-            done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" -print0)
+            done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV")
         fi
     fi
     
@@ -186,13 +188,14 @@ test_terraform_vars_valid_json() {
     local valid_files=0
     
     # Find all terraform.tfvars.json files
-    while IFS= read -r -d '' tfvars_file; do
+    while IFS= read -r tfvars_file; do
+        [ -z "$tfvars_file" ] && continue
         if jq empty "$tfvars_file" 2>/dev/null; then
             ((valid_files++))
         else
             invalid_files+=("$tfvars_file")
         fi
-    done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f -print0 2>/dev/null || true)
+    done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f 2>/dev/null || true)
     
     if [ ${#invalid_files[@]} -eq 0 ] && [ $valid_files -gt 0 ]; then
         print_test_result "$test_name" "PASS" "All $valid_files tfvars files contain valid JSON"
@@ -211,7 +214,8 @@ test_terraform_vars_content() {
     local empty_files=()
     
     # Find all terraform.tfvars.json files and check content
-    while IFS= read -r -d '' tfvars_file; do
+    while IFS= read -r tfvars_file; do
+        [ -z "$tfvars_file" ] && continue
         if [ -s "$tfvars_file" ]; then
             # Check if file contains expected environment values
             if grep -q "\"$TEST_ENV\"" "$tfvars_file" 2>/dev/null; then
@@ -222,7 +226,7 @@ test_terraform_vars_content() {
         else
             empty_files+=("$tfvars_file (empty)")
         fi
-    done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f -print0 2>/dev/null || true)
+    done < <(find "$TERRAFORM_ENVS_DIR" -name "terraform.tfvars.json" -type f 2>/dev/null || true)
     
     if [ ${#empty_files[@]} -eq 0 ] && [ $files_with_content -gt 0 ]; then
         print_test_result "$test_name" "PASS" "$files_with_content files contain expected content"
