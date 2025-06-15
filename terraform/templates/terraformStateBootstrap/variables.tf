@@ -27,3 +27,8 @@ variable "dynamodb_terraform_lock_name" {
     description = "Name of DynamoDB table to use for Terraform state locking."
     type = string
 }
+
+variable "terraform_bootstrap_state_s3_bucket" {
+    description = "Name of S3 bucket for storing bootstrap terraform state."
+    type = string
+}

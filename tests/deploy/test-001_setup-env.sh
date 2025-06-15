@@ -392,23 +392,18 @@ test_terraform_backend_no_bootstrap() {
     local bootstrap_projects=0
     echo "-> ${FUNCNAME[0]}"
 
-    # Find all terraformStateBootstrap projects
-    while IFS= read -r project_dir; do
-        [ -z "$project_dir" ] && continue
-        local project_name
-        project_name=$(basename "$project_dir")
-        
-        if [[ "$project_name" =~ terraformStateBootstrap ]]; then
-            bootstrap_projects=$((bootstrap_projects + 1))
-            local backend_file="$project_dir/backend.tf"
-            if [ -f "$backend_file" ]; then
-                bootstrap_with_backend+=("$project_dir")
-                echo "  ERROR: Bootstrap project has backend.tf: $project_dir"
-            else
-                echo "  OK: Bootstrap project has no backend.tf: $project_dir"
-            fi
+    # Check bootstrap project in new location
+    local bootstrap_dir="$PROJECT_ROOT/terraform/terraformStateBootstrap"
+    if [ -d "$bootstrap_dir" ]; then
+        bootstrap_projects=1
+        local backend_file="$bootstrap_dir/backend.tf"
+        if [ -f "$backend_file" ]; then
+            bootstrap_with_backend+=("$bootstrap_dir")
+            echo "  ERROR: Bootstrap project has backend.tf: $bootstrap_dir"
+        else
+            echo "  OK: Bootstrap project has no backend.tf: $bootstrap_dir"
         fi
-    done < <(find "$TERRAFORM_ENVS_DIR" -maxdepth 2 -type d -name "*terraformStateBootstrap*" 2>/dev/null || true)
+    fi
 
     if [ ${#bootstrap_with_backend[@]} -eq 0 ]; then
         if [ $bootstrap_projects -gt 0 ]; then

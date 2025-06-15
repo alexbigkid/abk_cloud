@@ -249,18 +249,11 @@ test_terraform_backend_files_removed() {
         return
     fi
 
-    # Check if any backend.tf files remain
+    # Check if any backend.tf files remain in the envs directory
+    # Note: Bootstrap project is now in terraform/terraformStateBootstrap/ (outside envs)
     while IFS= read -r -d '' backend_file; do
-        local project_dir
-        project_dir=$(dirname "$backend_file")
-        local project_name
-        project_name=$(basename "$project_dir")
-        
-        # Skip terraformStateBootstrap projects (they never had backend.tf)
-        if [[ ! "$project_name" =~ terraformStateBootstrap ]]; then
-            remaining_files+=("$backend_file")
-            echo "  Found remaining backend.tf: $backend_file"
-        fi
+        remaining_files+=("$backend_file")
+        echo "  Found remaining backend.tf: $backend_file"
     done < <(find "$TERRAFORM_ENVS_DIR" -name "backend.tf" -type f -print0 2>/dev/null || true)
 
     if [ ${#remaining_files[@]} -eq 0 ]; then
@@ -289,19 +282,12 @@ test_terraform_backend_template_preserved() {
 collect_backend_files_before_remove() {
     echo "-> ${FUNCNAME[0]}"
 
-    # Collect backend.tf files
+    # Collect backend.tf files from envs directory
+    # Note: Bootstrap project is now in terraform/terraformStateBootstrap/ (outside envs)
     BACKEND_FILES_BEFORE=()
     while IFS= read -r -d '' backend_file; do
-        local project_dir
-        project_dir=$(dirname "$backend_file")
-        local project_name
-        project_name=$(basename "$project_dir")
-        
-        # Only track non-bootstrap projects
-        if [[ ! "$project_name" =~ terraformStateBootstrap ]]; then
-            BACKEND_FILES_BEFORE+=("$backend_file")
-            echo "Found backend.tf file before removal: $backend_file"
-        fi
+        BACKEND_FILES_BEFORE+=("$backend_file")
+        echo "Found backend.tf file before removal: $backend_file"
     done < <(find "$TERRAFORM_ENVS_DIR" -name "backend.tf" -type f -print0 2>/dev/null || true)
 
     echo "Found ${#BACKEND_FILES_BEFORE[@]} backend.tf files before removal"

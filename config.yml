@@ -15,6 +15,7 @@ terraform:
     abk_deployment_region: $ABK_DEPLOYMENT_REGION
     terraform_state_S3_bucket_name: $ABK_PRJ_NAME-terraform-state-do-not-delete-$ABK_DEPLOYMENT_ENV-$ABK_DEPLOYMENT_REGION
     dynamodb_terraform_lock_name: $ABK_PRJ_NAME-terraform-lock
+    terraform_bootstrap_state_s3_bucket: $ABK_PRJ_NAME-terraform-bootstrap-state-do-not-delete-$ABK_DEPLOYMENT_ENV-$ABK_DEPLOYMENT_REGION
   serviceDeploymentBucket:
     abk_deployment_env: $ABK_DEPLOYMENT_ENV
     abk_deployment_region: $ABK_DEPLOYMENT_REGION

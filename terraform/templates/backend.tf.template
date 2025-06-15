@@ -20,4 +20,7 @@ provider "aws" {
   skip_credentials_validation = false
   skip_metadata_api_check     = false
   skip_region_validation      = false
+  shared_credentials_files    = []
+  shared_config_files         = []
+  profile                     = ""
 }

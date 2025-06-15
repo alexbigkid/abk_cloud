@@ -14,7 +14,7 @@ locals {
 # modules
 # -----------------------------------------------------------------------------
 module "abk_s3_releases_bucket_module" {
-  source                 = "../../../templates/s3-private-bucket"
+  source                 = "../../../templates/s3PrivateBucket"
   private_s3_bucket_name = var.abk_service_deployment_bucket_name
   enable_versioning      = var.enable_versioning
 }
