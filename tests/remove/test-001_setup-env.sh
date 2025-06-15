@@ -273,13 +273,13 @@ main() {
     fi
 
     # Test that files were properly removed
-    test_config_file_removed
-    test_terraform_vars_files_removed
-    test_specific_files_removed
-    test_template_files_preserved
+    test_config_file_removed || echo "❌ test_config_file_removed"
+    test_terraform_vars_files_removed || echo "❌ test_terraform_vars_files_removed"
+    test_specific_files_removed || echo "❌ test_specific_files_removed"
+    test_template_files_preserved || echo "❌ test_template_files_preserved"
 
     # Test idempotency
-    test_cleanup_idempotent
+    test_cleanup_idempotent || echo "❌ test_cleanup_idempotent"
 
     print_test_summary
 }
