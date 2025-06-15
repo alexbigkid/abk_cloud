@@ -15,7 +15,10 @@ variable "dynamodb_terraform_lock_name" {
 }
 
 provider "aws" {
-  region  = var.abk_deployment_region
+  region                      = var.abk_deployment_region
+  skip_credentials_validation = false
+  skip_metadata_api_check     = false
+  skip_region_validation      = false
 }
 
 module "terraformStateBootstrap" {
