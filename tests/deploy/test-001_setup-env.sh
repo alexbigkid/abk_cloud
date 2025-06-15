@@ -9,8 +9,8 @@ set -eu
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Test configuration
-TEST_ENV="dev"
-TEST_REGION="us-west-2"
+TEST_ENV="${1:-dev}"
+TEST_REGION="${2:-us-west-2}"
 EXPECTED_CONFIG_FILE="$PROJECT_ROOT/config.$TEST_ENV.yml"
 TERRAFORM_ENVS_DIR="$PROJECT_ROOT/terraform/envs"
 COMMON_LIB_FILE="$PROJECT_ROOT/common-lib.sh"
