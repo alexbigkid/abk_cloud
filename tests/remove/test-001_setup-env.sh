@@ -237,6 +237,105 @@ test_template_files_preserved() {
     echo "<- ${FUNCNAME[0]}"
 }
 
+test_terraform_backend_files_removed() {
+    echo "-> ${FUNCNAME[0]}"
+    local test_name="Terraform backend.tf files removed"
+    local remaining_files=()
+
+    # Check if terraform envs directory exists
+    if [ ! -d "$TERRAFORM_ENVS_DIR" ]; then
+        print_test_result "$test_name" "PASS" "Terraform envs directory does not exist"
+        echo "<- ${FUNCNAME[0]}"
+        return
+    fi
+
+    # Check if any backend.tf files remain
+    while IFS= read -r -d '' backend_file; do
+        local project_dir
+        project_dir=$(dirname "$backend_file")
+        local project_name
+        project_name=$(basename "$project_dir")
+        
+        # Skip terraformStateBootstrap projects (they never had backend.tf)
+        if [[ ! "$project_name" =~ terraformStateBootstrap ]]; then
+            remaining_files+=("$backend_file")
+            echo "  Found remaining backend.tf: $backend_file"
+        fi
+    done < <(find "$TERRAFORM_ENVS_DIR" -name "backend.tf" -type f -print0 2>/dev/null || true)
+
+    if [ ${#remaining_files[@]} -eq 0 ]; then
+        print_test_result "$test_name" "PASS" "All backend.tf files removed"
+    else
+        local details="Remaining files: ${remaining_files[*]}"
+        print_test_result "$test_name" "FAIL" "$details"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
+test_terraform_backend_template_preserved() {
+    local test_name="Backend template file preserved"
+    echo "-> ${FUNCNAME[0]}"
+
+    local template_file="$PROJECT_ROOT/terraform/templates/backend.tf.template"
+    
+    if [ -f "$template_file" ]; then
+        print_test_result "$test_name" "PASS" "Backend template file preserved"
+    else
+        print_test_result "$test_name" "FAIL" "Backend template file missing: $template_file"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
+collect_backend_files_before_remove() {
+    echo "-> ${FUNCNAME[0]}"
+
+    # Collect backend.tf files
+    BACKEND_FILES_BEFORE=()
+    while IFS= read -r -d '' backend_file; do
+        local project_dir
+        project_dir=$(dirname "$backend_file")
+        local project_name
+        project_name=$(basename "$project_dir")
+        
+        # Only track non-bootstrap projects
+        if [[ ! "$project_name" =~ terraformStateBootstrap ]]; then
+            BACKEND_FILES_BEFORE+=("$backend_file")
+            echo "Found backend.tf file before removal: $backend_file"
+        fi
+    done < <(find "$TERRAFORM_ENVS_DIR" -name "backend.tf" -type f -print0 2>/dev/null || true)
+
+    echo "Found ${#BACKEND_FILES_BEFORE[@]} backend.tf files before removal"
+    echo "<- ${FUNCNAME[0]}"
+}
+
+test_specific_backend_files_removed() {
+    echo "-> ${FUNCNAME[0]}"
+    local test_name="Specific backend files removed"
+    local missing_removals=()
+
+    # Check that specific backend files from the deploy phase were removed
+    for file in "${BACKEND_FILES_BEFORE[@]}"; do
+        if [ -f "$file" ]; then
+            missing_removals+=("$file")
+            echo "  Backend file not removed: $file"
+        else
+            echo "  Backend file properly removed: $file"
+        fi
+    done
+
+    if [ ${#missing_removals[@]} -eq 0 ]; then
+        if [ ${#BACKEND_FILES_BEFORE[@]} -gt 0 ]; then
+            print_test_result "$test_name" "PASS" "All ${#BACKEND_FILES_BEFORE[@]} expected backend files were removed"
+        else
+            print_test_result "$test_name" "PASS" "No backend files to remove (expected)"
+        fi
+    else
+        local details="Files not removed: ${missing_removals[*]}"
+        print_test_result "$test_name" "FAIL" "$details"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
 #------------------------------------------------------------------------------
 # Main test execution
 #------------------------------------------------------------------------------
@@ -262,6 +361,7 @@ main() {
     # Setup: Create files to be removed
     setup_test_files
     collect_files_before_remove
+    collect_backend_files_before_remove
 
     echo
     echo "Running tests..."
@@ -276,7 +376,10 @@ main() {
     test_config_file_removed || echo "❌ test_config_file_removed"
     test_terraform_vars_files_removed || echo "❌ test_terraform_vars_files_removed"
     test_specific_files_removed || echo "❌ test_specific_files_removed"
+    test_terraform_backend_files_removed || echo "❌ test_terraform_backend_files_removed"
+    test_specific_backend_files_removed || echo "❌ test_specific_backend_files_removed"
     test_template_files_preserved || echo "❌ test_template_files_preserved"
+    test_terraform_backend_template_preserved || echo "❌ test_terraform_backend_template_preserved"
 
     # Test idempotency
     test_cleanup_idempotent || echo "❌ test_cleanup_idempotent"

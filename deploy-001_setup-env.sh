@@ -67,6 +67,67 @@ SetupTerraformVariables() {
     return "$LCL_EXIT_CODE"
 }
 
+SetupTerraformBackend() {
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
+    local LCL_PROJECT="$1"
+    local LCL_ENV="$2"
+    local LCL_EXIT_CODE=0
+    local LCL_PROJECT_NAME
+    LCL_PROJECT_NAME=$(basename "$LCL_PROJECT")
+    
+    # Skip backend generation for terraformStateBootstrap modules
+    if [[ "$LCL_PROJECT_NAME" =~ terraformStateBootstrap ]]; then
+        PrintTrace "$TRACE_INFO" "Skipping backend.tf generation for bootstrap module: $LCL_PROJECT_NAME"
+        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+        return "$LCL_EXIT_CODE"
+    fi
+    
+    local LCL_BACKEND_TEMPLATE="terraform/templates/backend.tf.template"
+    local LCL_BACKEND_FILE="$LCL_PROJECT/backend.tf"
+    
+    if [ ! -f "$LCL_BACKEND_TEMPLATE" ]; then
+        PrintTrace "$TRACE_ERROR" "Backend template not found: $LCL_BACKEND_TEMPLATE"
+        LCL_EXIT_CODE=1
+        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+        return "$LCL_EXIT_CODE"
+    fi
+    
+    # Determine project name for backend key
+    local LCL_TERRAFORM_PROJECT_NAME
+    if [[ "$LCL_PROJECT_NAME" =~ ^[0-9][0-9][0-9]_ ]]; then
+        # Sequential project: split by '_' and get the part after the digits
+        local LCL_TERRAFORM_PRJ
+        IFS='_' read -ra LCL_TERRAFORM_PRJ <<< "$LCL_PROJECT_NAME"
+        LCL_TERRAFORM_PROJECT_NAME="${LCL_TERRAFORM_PRJ[1]}"
+    else
+        # Parallel project: use the full project name
+        LCL_TERRAFORM_PROJECT_NAME="$LCL_PROJECT_NAME"
+    fi
+    
+    PrintTrace "$TRACE_INFO" "Generating backend.tf for project: $LCL_PROJECT_NAME"
+    PrintTrace "$TRACE_DEBUG" "Template: $LCL_BACKEND_TEMPLATE"
+    PrintTrace "$TRACE_DEBUG" "Output: $LCL_BACKEND_FILE"
+    PrintTrace "$TRACE_DEBUG" "Backend key project name: $LCL_TERRAFORM_PROJECT_NAME"
+    
+    # Export variables for envsubst
+    export TERRAFORM_STATE_S3_BUCKET_NAME
+    export ABK_DEPLOYMENT_ENV="$LCL_ENV"
+    export ABK_DEPLOYMENT_REGION
+    export DYNAMODB_TERRAFORM_LOCK_NAME
+    export TERRAFORM_PROJECT_NAME="$LCL_TERRAFORM_PROJECT_NAME"
+    
+    # Generate backend.tf from template
+    if ! envsubst < "$LCL_BACKEND_TEMPLATE" > "$LCL_BACKEND_FILE"; then
+        PrintTrace "$TRACE_ERROR" "Failed to generate backend.tf for $LCL_PROJECT_NAME"
+        LCL_EXIT_CODE=1
+    else
+        PrintTrace "$TRACE_INFO" "Generated backend.tf for $LCL_PROJECT_NAME"
+    fi
+    
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+    return "$LCL_EXIT_CODE"
+}
+
 
 SetupTerraformProjects() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
@@ -92,6 +153,7 @@ SetupTerraformProjects() {
     # Process all terraform projects
     for PROJECT in $LCL_TERRAFORM_PROJECTS; do
         SetupTerraformVariables "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
+        SetupTerraformBackend "$PROJECT" "$LCL_CONFIG_ENV" || LCL_EXIT_CODE=$?
     done
 
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"

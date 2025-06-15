@@ -263,6 +263,166 @@ test_terraform_vars_content() {
     echo "<- ${FUNCNAME[0]}"
 }
 
+test_terraform_backend_files_created() {
+    local test_name="Terraform backend.tf files created"
+    local missing_files=()
+    local found_files=0
+    local expected_projects=0
+    echo "-> ${FUNCNAME[0]}"
+
+    # Check common directory
+    echo "  Checking common directory: $TERRAFORM_ENVS_DIR/common"
+    if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
+        echo "  Common directory exists"
+        while IFS= read -r project_dir; do
+            [ -z "$project_dir" ] && continue
+            local project_name
+            project_name=$(basename "$project_dir")
+            echo "  Processing project: $project_dir"
+            
+            # Skip terraformStateBootstrap (should NOT have backend.tf)
+            if [[ "$project_name" =~ terraformStateBootstrap ]]; then
+                echo "  Skipping bootstrap project: $project_name"
+                continue
+            fi
+            
+            expected_projects=$((expected_projects + 1))
+            local backend_file="$project_dir/backend.tf"
+            if [ -f "$backend_file" ]; then
+                echo "  Found backend.tf: $backend_file"
+                found_files=$((found_files + 1))
+            else
+                echo "  Missing backend.tf: $backend_file"
+                missing_files+=("$backend_file")
+            fi
+        done < <(find "$TERRAFORM_ENVS_DIR/common" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/common")
+    else
+        echo "  Common directory does not exist"
+    fi
+
+    # Check environment-specific directory (only if it contains projects)
+    if [ -d "$TERRAFORM_ENVS_DIR/$TEST_ENV" ]; then
+        local env_projects
+        env_projects=$(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" | wc -l)
+        if [ "$env_projects" -gt 0 ]; then
+            while IFS= read -r project_dir; do
+                [ -z "$project_dir" ] && continue
+                local project_name
+                project_name=$(basename "$project_dir")
+                
+                # Skip terraformStateBootstrap (should NOT have backend.tf)
+                if [[ "$project_name" =~ terraformStateBootstrap ]]; then
+                    echo "  Skipping bootstrap project: $project_name"
+                    continue
+                fi
+                
+                expected_projects=$((expected_projects + 1))
+                local backend_file="$project_dir/backend.tf"
+                if [ -f "$backend_file" ]; then
+                    found_files=$((found_files + 1))
+                else
+                    missing_files+=("$backend_file")
+                fi
+            done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV")
+        fi
+    fi
+
+    echo "  Summary: expected=$expected_projects, found=$found_files, missing=${#missing_files[@]}"
+
+    if [ ${#missing_files[@]} -eq 0 ] && [ $found_files -gt 0 ]; then
+        print_test_result "$test_name" "PASS" "Found $found_files backend.tf files"
+    elif [ $expected_projects -eq 0 ]; then
+        print_test_result "$test_name" "PASS" "No non-bootstrap terraform projects found (expected)"
+    else
+        local details="Found $found_files files, expected $expected_projects"
+        if [ ${#missing_files[@]} -gt 0 ]; then
+            details="$details, Missing: ${missing_files[*]}"
+        fi
+        print_test_result "$test_name" "FAIL" "$details"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
+test_terraform_backend_content() {
+    local test_name="Terraform backend.tf files contain valid content"
+    local invalid_files=()
+    local valid_files=0
+    echo "-> ${FUNCNAME[0]}"
+
+    # Find all backend.tf files
+    while IFS= read -r backend_file; do
+        [ -z "$backend_file" ] && continue
+        
+        local project_dir
+        project_dir=$(dirname "$backend_file")
+        local project_name
+        project_name=$(basename "$project_dir")
+        
+        # Check if file contains expected backend configuration
+        if grep -q "backend \"s3\"" "$backend_file" 2>/dev/null && \
+           grep -q "bucket.*=" "$backend_file" 2>/dev/null && \
+           grep -q "key.*=" "$backend_file" 2>/dev/null && \
+           grep -q "region.*=" "$backend_file" 2>/dev/null && \
+           grep -q "dynamodb_table.*=" "$backend_file" 2>/dev/null; then
+            valid_files=$((valid_files + 1))
+            echo "  Valid backend.tf: $backend_file"
+        else
+            invalid_files+=("$backend_file")
+            echo "  Invalid backend.tf: $backend_file"
+        fi
+    done < <(find "$TERRAFORM_ENVS_DIR" -name "backend.tf" -type f 2>/dev/null || true)
+
+    if [ ${#invalid_files[@]} -eq 0 ] && [ $valid_files -gt 0 ]; then
+        print_test_result "$test_name" "PASS" "All $valid_files backend.tf files contain valid content"
+    elif [ $valid_files -eq 0 ]; then
+        print_test_result "$test_name" "PASS" "No backend.tf files found (expected for bootstrap-only setup)"
+    else
+        local details="Valid: $valid_files"
+        if [ ${#invalid_files[@]} -gt 0 ]; then
+            details="$details, Invalid: ${invalid_files[*]}"
+        fi
+        print_test_result "$test_name" "FAIL" "$details"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
+test_terraform_backend_no_bootstrap() {
+    local test_name="Bootstrap projects do NOT have backend.tf files"
+    local bootstrap_with_backend=()
+    local bootstrap_projects=0
+    echo "-> ${FUNCNAME[0]}"
+
+    # Find all terraformStateBootstrap projects
+    while IFS= read -r project_dir; do
+        [ -z "$project_dir" ] && continue
+        local project_name
+        project_name=$(basename "$project_dir")
+        
+        if [[ "$project_name" =~ terraformStateBootstrap ]]; then
+            bootstrap_projects=$((bootstrap_projects + 1))
+            local backend_file="$project_dir/backend.tf"
+            if [ -f "$backend_file" ]; then
+                bootstrap_with_backend+=("$project_dir")
+                echo "  ERROR: Bootstrap project has backend.tf: $project_dir"
+            else
+                echo "  OK: Bootstrap project has no backend.tf: $project_dir"
+            fi
+        fi
+    done < <(find "$TERRAFORM_ENVS_DIR" -maxdepth 2 -type d -name "*terraformStateBootstrap*" 2>/dev/null || true)
+
+    if [ ${#bootstrap_with_backend[@]} -eq 0 ]; then
+        if [ $bootstrap_projects -gt 0 ]; then
+            print_test_result "$test_name" "PASS" "All $bootstrap_projects bootstrap projects correctly have no backend.tf"
+        else
+            print_test_result "$test_name" "PASS" "No bootstrap projects found"
+        fi
+    else
+        local details="Bootstrap projects with backend.tf: ${bootstrap_with_backend[*]}"
+        print_test_result "$test_name" "FAIL" "$details"
+    fi
+    echo "<- ${FUNCNAME[0]}"
+}
+
 #------------------------------------------------------------------------------
 # Main test execution
 #------------------------------------------------------------------------------
@@ -306,6 +466,9 @@ main() {
     test_terraform_vars_files_created || echo "❌ test_terraform_vars_files_created"
     test_terraform_vars_valid_json || echo "❌ test_terraform_vars_valid_json"
     test_terraform_vars_content || echo "❌ test_terraform_vars_content"
+    test_terraform_backend_files_created || echo "❌ test_terraform_backend_files_created"
+    test_terraform_backend_content || echo "❌ test_terraform_backend_content"
+    test_terraform_backend_no_bootstrap || echo "❌ test_terraform_backend_no_bootstrap"
 
     print_test_summary
 }

@@ -131,6 +131,7 @@
         "CMOS",
         "coeff",
         "direnv",
+        "envsubst",
         "esbuild",
         "failfast",
         "fargate",

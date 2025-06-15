@@ -46,6 +46,32 @@ RemoveTerraformVariables() {
     return "$LCL_EXIT_CODE"
 }
 
+RemoveTerraformBackend() {
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
+    local LCL_PROJECT="$1"
+    local LCL_BACKEND_FILE="$LCL_PROJECT/backend.tf"
+    local LCL_EXIT_CODE=0
+    local LCL_PROJECT_NAME
+    LCL_PROJECT_NAME=$(basename "$LCL_PROJECT")
+
+    # Skip backend removal for terraformStateBootstrap modules (they don't have backend.tf)
+    if [[ "$LCL_PROJECT_NAME" =~ terraformStateBootstrap ]]; then
+        PrintTrace "$TRACE_DEBUG" "Skipping backend.tf removal for bootstrap module: $LCL_PROJECT_NAME"
+        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+        return "$LCL_EXIT_CODE"
+    fi
+
+    if [ -f "$LCL_BACKEND_FILE" ]; then
+        PrintTrace "$TRACE_INFO" "Removing terraform backend file: $LCL_BACKEND_FILE"
+        rm -f "$LCL_BACKEND_FILE" || LCL_EXIT_CODE=$?
+    else
+        PrintTrace "$TRACE_DEBUG" "Terraform backend file does not exist: $LCL_BACKEND_FILE"
+    fi
+
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
+    return "$LCL_EXIT_CODE"
+}
+
 
 RemoveTerraformProjects() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
@@ -67,9 +93,10 @@ RemoveTerraformProjects() {
     PrintTrace "$TRACE_INFO" "Removing terraform vars from projects in $LCL_DIR_ENV:"
     PrintTrace "$TRACE_INFO" "$LCL_TERRAFORM_PROJECTS"
 
-    # Remove terraform vars from all projects
+    # Remove terraform vars and backend files from all projects
     for PROJECT in $LCL_TERRAFORM_PROJECTS; do
         RemoveTerraformVariables "$PROJECT" || LCL_EXIT_CODE=$?
+        RemoveTerraformBackend "$PROJECT" || LCL_EXIT_CODE=$?
     done
 
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"

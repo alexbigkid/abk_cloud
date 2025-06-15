@@ -196,3 +196,4 @@ cython_debug/
 # Environment generated configuration file for deployments. It is generated on the fly from config.yml
 config.*.yml
 **/terraform.tfvars.json
+**/.terraform/
