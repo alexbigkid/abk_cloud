@@ -42,13 +42,13 @@ print_test_result() {
 
     if [ "$result" = "PASS" ]; then
         echo "✅ PASS: $test_name"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo "❌ FAIL: $test_name"
         if [ -n "$details" ]; then
             echo "   Details: $details"
         fi
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         FAILED_TESTS+=("$test_name")
     fi
 }

@@ -175,10 +175,10 @@ test_terraform_vars_files_created() {
         if [ "$env_projects" -gt 0 ]; then
             while IFS= read -r project_dir; do
                 [ -z "$project_dir" ] && continue
-                ((expected_projects++))
+                expected_projects=$((expected_projects + 1))
                 local tfvars_file="$project_dir/terraform.tfvars.json"
                 if [ -f "$tfvars_file" ]; then
-                    ((found_files++))
+                    found_files=$((found_files + 1))
                 else
                     missing_files+=("$tfvars_file")
                 fi
@@ -212,7 +212,7 @@ test_terraform_vars_valid_json() {
     while IFS= read -r tfvars_file; do
         [ -z "$tfvars_file" ] && continue
         if jq empty "$tfvars_file" 2>/dev/null; then
-            ((valid_files++))
+            valid_files=$((valid_files + 1))
         else
             invalid_files+=("$tfvars_file")
         fi
@@ -242,7 +242,7 @@ test_terraform_vars_content() {
         if [ -s "$tfvars_file" ]; then
             # Check if file contains expected environment values
             if grep -q "\"$TEST_ENV\"" "$tfvars_file" 2>/dev/null; then
-                ((files_with_content++))
+                files_with_content=$((files_with_content + 1))
             else
                 empty_files+=("$tfvars_file (no env values)")
             fi

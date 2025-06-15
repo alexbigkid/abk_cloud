@@ -81,14 +81,14 @@ run_test_script() {
     # Run the test script with environment and region parameters
     if "$test_script" "$TEST_ENV" "$TEST_REGION"; then
         echo "✅ PASSED: $test_name"
-        ((PASSED_TESTS++))
+        PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         echo "❌ FAILED: $test_name"
-        ((FAILED_TESTS++))
+        FAILED_TESTS=$((FAILED_TESTS + 1))
         FAILED_TEST_NAMES+=("$test_name")
     fi
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
 #------------------------------------------------------------------------------
