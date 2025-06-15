@@ -109,12 +109,20 @@ SetupTerraformBackend() {
     PrintTrace "$TRACE_DEBUG" "Output: $LCL_BACKEND_FILE"
     PrintTrace "$TRACE_DEBUG" "Backend key project name: $LCL_TERRAFORM_PROJECT_NAME"
     
-    # Export variables for envsubst
+    # Set and export variables for envsubst from configuration
+    local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
+    
+    # Extract backend configuration values from the environment config
     export TERRAFORM_STATE_S3_BUCKET_NAME
+    TERRAFORM_STATE_S3_BUCKET_NAME=$(yq -r ".terraform.terraformStateBootstrap.terraform_state_S3_bucket_name" "$LCL_ENV_CONFIG")
+    export DYNAMODB_TERRAFORM_LOCK_NAME
+    DYNAMODB_TERRAFORM_LOCK_NAME=$(yq -r ".terraform.terraformStateBootstrap.dynamodb_terraform_lock_name" "$LCL_ENV_CONFIG")
     export ABK_DEPLOYMENT_ENV="$LCL_ENV"
     export ABK_DEPLOYMENT_REGION
-    export DYNAMODB_TERRAFORM_LOCK_NAME
     export TERRAFORM_PROJECT_NAME="$LCL_TERRAFORM_PROJECT_NAME"
+    
+    PrintTrace "$TRACE_DEBUG" "Backend S3 bucket: $TERRAFORM_STATE_S3_BUCKET_NAME"
+    PrintTrace "$TRACE_DEBUG" "Backend DynamoDB table: $DYNAMODB_TERRAFORM_LOCK_NAME"
     
     # Generate backend.tf from template
     if ! envsubst < "$LCL_BACKEND_TEMPLATE" > "$LCL_BACKEND_FILE"; then
