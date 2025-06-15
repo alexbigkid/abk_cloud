@@ -14,7 +14,6 @@ InstallRequiredToolsUsingBrew() {
         parallel
         # serverless
         shellcheck
-        terraform
         yq
     )
     LCL_PACKAGE=(
@@ -23,7 +22,6 @@ InstallRequiredToolsUsingBrew() {
         parallel
         # serverless
         shellcheck
-        terraform
         yq
     )
 
@@ -54,7 +52,6 @@ InstallRequiredToolsUsingApt() {
         jq
         parallel
         shellcheck
-        terraform
         yq
     )
     LCL_PACKAGE=(
@@ -62,7 +59,6 @@ InstallRequiredToolsUsingApt() {
         jq
         parallel
         shellcheck
-        terraform
         yq
     )
 
@@ -76,19 +72,7 @@ InstallRequiredToolsUsingApt() {
         if command -v "${LCL_TOOL[$i]}" >/dev/null 2>&1; then
             which "${LCL_TOOL[$i]}"
         else
-            # Try apt first
-            if sudo apt install -y "${LCL_PACKAGE[$i]}" 2>/dev/null; then
-                PrintTrace "$TRACE_INFO" "Successfully installed ${LCL_TOOL[$i]} via apt"
-            else
-                # Fallback to snap
-                PrintTrace "$TRACE_INFO" "apt failed, trying snap for ${LCL_TOOL[$i]}"
-                if sudo snap install "${LCL_TOOL[$i]}" 2>/dev/null; then
-                    PrintTrace "$TRACE_INFO" "Successfully installed ${LCL_TOOL[$i]} via snap"
-                else
-                    PrintTrace "$TRACE_ERROR" "Failed to install ${LCL_TOOL[$i]} via both apt and snap"
-                    exit "$EXIT_CODE_REQUIRED_TOOL_IS_NOT_INSTALLED"
-                fi
-            fi
+            sudo apt install -y "${LCL_PACKAGE[$i]}" || exit "$EXIT_CODE_REQUIRED_TOOL_IS_NOT_INSTALLED"
         fi
         PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
         ${LCL_TOOL[$i]} --version || exit $?
