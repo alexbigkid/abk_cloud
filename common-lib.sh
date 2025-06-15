@@ -21,7 +21,7 @@ TRACE_FUNCTION=4
 TRACE_INFO=5
 TRACE_DEBUG=6
 TRACE_ALL=7
-TRACE_LEVEL=$TRACE_ALL
+TRACE_LEVEL=$TRACE_INFO
 
 
 #------------------------------------------------------------------------------

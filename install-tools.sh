@@ -33,15 +33,15 @@ InstallRequiredToolsUsingBrew() {
     PrintTrace "$TRACE_FUNCTION" "----------------------------------------------------------------------"
 
     for (( i = 0; i < ${#LCL_TOOL[@]}; i++)); do
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
         if command -v "${LCL_TOOL[$i]}" >/dev/null 2>&1; then
             which "${LCL_TOOL[$i]}"
         else
             brew install "${LCL_PACKAGE[$i]}"
         fi
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
         ${LCL_TOOL[$i]} --version || exit $?
-        PrintTrace "$$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
+        PrintTrace "$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
         echo
     done
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
@@ -72,17 +72,30 @@ InstallRequiredToolsUsingApt() {
     PrintTrace "$TRACE_FUNCTION" "----------------------------------------------------------------------"
 
     for (( i = 0; i < ${#LCL_TOOL[@]}; i++)); do
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
         if command -v "${LCL_TOOL[$i]}" >/dev/null 2>&1; then
             which "${LCL_TOOL[$i]}"
         else
-            sudo apt install -y "${LCL_PACKAGE[$i]}"
+            # Try apt first
+            if sudo apt install -y "${LCL_PACKAGE[$i]}" 2>/dev/null; then
+                PrintTrace "$TRACE_INFO" "Successfully installed ${LCL_TOOL[$i]} via apt"
+            else
+                # Fallback to snap
+                PrintTrace "$TRACE_INFO" "apt failed, trying snap for ${LCL_TOOL[$i]}"
+                if sudo snap install "${LCL_TOOL[$i]}" 2>/dev/null; then
+                    PrintTrace "$TRACE_INFO" "Successfully installed ${LCL_TOOL[$i]} via snap"
+                else
+                    PrintTrace "$TRACE_ERROR" "Failed to install ${LCL_TOOL[$i]} via both apt and snap"
+                    exit "$EXIT_CODE_REQUIRED_TOOL_IS_NOT_INSTALLED"
+                fi
+            fi
         fi
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
         ${LCL_TOOL[$i]} --version || exit $?
-        PrintTrace "$$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
+        PrintTrace "$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
         echo
     done
+
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
 }
 
@@ -100,15 +113,15 @@ InstallRequiredToolsUsingNpm() {
     PrintTrace "$TRACE_FUNCTION" "----------------------------------------------------------------------"
 
     for (( i = 0; i < ${#LCL_TOOL[@]}; i++)); do
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - INSTALL AND CHECK\n------------------------"
         if command -v "${LCL_TOOL[$i]}" >/dev/null 2>&1; then
             which "${LCL_TOOL[$i]}"
         else
             sudo npm -g install "${LCL_PACKAGE[$i]}"
         fi
-        PrintTrace "$$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
+        PrintTrace "$TRACE_INFO"  "\n------------------------\n${LCL_TOOL[$i]} - VERSION\n------------------------"
         ${LCL_TOOL[$i]} --version || exit $?
-        PrintTrace "$$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
+        PrintTrace "$TRACE_INFO"  "${YLW}----------------------------------------------------------------------${NC}"
         echo
     done
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
