@@ -38,6 +38,7 @@ jobs:
         include:
           - env: dev
             region: us-west-2
+    environment: ${{ matrix.env }}
 
     steps:
       - name: Checkout code
@@ -54,7 +55,8 @@ jobs:
           fi
 
           echo "ABK_DEPLOYMENT_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
-          echo "ABK_PRJ_NAME=abk-ci-test" >> $GITHUB_ENV
+          echo "ABK_PRJ_NAME=${{ vars.ABK_PRJ_NAME }}" >> $GITHUB_ENV
+          echo "ABK_DEPLOYMENT_REGION=${{ vars.ABK_DEPLOYMENT_REGION }}" >> $GITHUB_ENV
           echo "LOG_LEVEL=info" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
@@ -62,7 +64,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.DEPLOY_REGION }}
+          aws-region: ${{ vars.ABK_DEPLOYMENT_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
