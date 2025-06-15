@@ -1,7 +1,8 @@
 # abk_cloud
 
-[![Cloud Infrastructure CI/CD](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml/badge.svg)](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml)
-[![Security Scan](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml/badge.svg)](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml)
+[![CI/CD Pipeline](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml/badge.svg?branch=main)](https://github.com/alexbigkid/abk_cloud/actions/workflows/cloud.yml)
+[![Latest Release](https://img.shields.io/github/v/release/alexbigkid/abk_cloud?include_prereleases&label=release)](https://github.com/alexbigkid/abk_cloud/releases)
+[![License](https://img.shields.io/github/license/alexbigkid/abk_cloud)](LICENSE)
 
 ABK Cloud template - for cloud infrastructure projects
 
