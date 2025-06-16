@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket         = "${TERRAFORM_STATE_S3_BUCKET_NAME}"
-    key            = "${ABK_DEPLOYMENT_ENV}/${TERRAFORM_PROJECT_NAME}/terraform.tfstate"
+    key            = "${TERRAFORM_PROJECT_NAME}/terraform.tfstate"
     region         = "${ABK_DEPLOYMENT_REGION}"
     dynamodb_table = "${DYNAMODB_TERRAFORM_LOCK_NAME}"
     encrypt        = true
