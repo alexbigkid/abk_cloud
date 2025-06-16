@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Test runner for deploy scripts
-# Finds and executes all test-001_* scripts in the tests/deploy directory
+# Finds and executes all test-[0-9][0-9][0-9]_* scripts in the tests/deploy directory in sequential order
+# Scripts with triple-digit prefixes (e.g., test-001_*, test-002_*) are executed in numerical order
 # Usage: ./test-deploy.sh [environment] [region]
 #   environment: dev, qa, or prod (optional, defaults to dev)
 #   region: AWS region (optional, defaults to us-west-2)
@@ -97,15 +98,15 @@ run_test_script() {
 main() {
     print_header
     
-    # Find all test-001_* scripts in the current directory
+    # Find all test-[0-9][0-9][0-9]_* scripts in the current directory and sort them by triple-digit prefix
     local test_scripts=()
     while IFS= read -r -d '' script; do
         test_scripts+=("$script")
-    done < <(find "$SCRIPT_DIR" -name "test-001_*.sh" -type f -executable -print0 | sort -z)
+    done < <(find "$SCRIPT_DIR" -name "test-[0-9][0-9][0-9]_*.sh" -type f -print0 | sort -z)
     
     if [ ${#test_scripts[@]} -eq 0 ]; then
-        echo "⚠️  No test-001_*.sh scripts found in $SCRIPT_DIR"
-        echo "   Make sure test scripts exist and are executable"
+        echo "⚠️  No test-[0-9][0-9][0-9]_*.sh scripts found in $SCRIPT_DIR"
+        echo "   Make sure test scripts with triple-digit prefixes exist and are executable"
         exit 1
     fi
     

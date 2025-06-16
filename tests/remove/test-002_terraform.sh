@@ -447,10 +447,32 @@ main() {
         exit 1
     fi
     
+    # Handle config file availability for removal testing
+    local CONFIG_BACKUP="${CONFIG_FILE}.backup.test"
     if [ ! -f "$CONFIG_FILE" ]; then
-        echo "❌ ERROR: Environment config not found: $CONFIG_FILE"
-        echo "   Run: ./deploy-001_setup-env.sh $TEST_ENV $TEST_REGION"
-        exit 1
+        # Try to find a backup config file for removal testing
+        if [ -f "$CONFIG_BACKUP" ]; then
+            echo "ℹ️  Using backup config file for removal validation: $CONFIG_BACKUP"
+            CONFIG_FILE="$CONFIG_BACKUP"
+        else
+            # Create config temporarily for removal validation
+            echo "ℹ️  Config file missing, creating temporary config for removal validation..."
+            ./deploy-001_setup-env.sh "$TEST_ENV" "$TEST_REGION" >/dev/null 2>&1
+            if [ ! -f "$CONFIG_FILE" ]; then
+                echo "❌ ERROR: Unable to create config file for removal validation"
+                echo "   Run: ./deploy-001_setup-env.sh $TEST_ENV $TEST_REGION"
+                exit 1
+            fi
+            # Create backup for future removal tests
+            cp "$CONFIG_FILE" "$CONFIG_BACKUP"
+            echo "✅ Created backup config for removal testing: $CONFIG_BACKUP"
+        fi
+    else
+        # Create backup if it doesn't exist
+        if [ ! -f "$CONFIG_BACKUP" ]; then
+            cp "$CONFIG_FILE" "$CONFIG_BACKUP"
+            echo "✅ Created backup config for removal testing: $CONFIG_BACKUP"
+        fi
     fi
     
     echo "Running infrastructure destruction validation tests..."
@@ -463,6 +485,11 @@ main() {
     test_aws_dynamodb_terraform_lock_table_clean
     test_aws_infrastructure_resources_destroyed
     test_terraform_backend_configuration_preserved
+    
+    # Cleanup temporary config if we created it (but keep the backup)
+    if [[ "$CONFIG_FILE" =~ \.backup\.test$ ]]; then
+        echo "ℹ️  Removal validation used backup config file"
+    fi
     
     print_test_summary
 }

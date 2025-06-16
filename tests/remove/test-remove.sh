@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Test runner for remove scripts
-# Finds and executes all test-001_* scripts in the tests/remove directory
+# Finds and executes all test-[0-9][0-9][0-9]_* scripts in the tests/remove directory in REVERSE order
+# Scripts with triple-digit prefixes (e.g., test-002_*, test-001_*) are executed in reverse numerical order
+# This ensures proper cleanup sequence: infrastructure first, then environment setup
 # Usage: ./test-remove.sh [environment] [region]
 #   environment: dev, qa, or prod (optional, defaults to dev)
 #   region: AWS region (optional, defaults to us-west-2)
@@ -97,15 +99,15 @@ run_test_script() {
 main() {
     print_header
     
-    # Find all test-001_* scripts in the current directory
+    # Find all test-[0-9][0-9][0-9]_* scripts in the current directory and sort them in REVERSE order for removal
     local test_scripts=()
     while IFS= read -r -d '' script; do
         test_scripts+=("$script")
-    done < <(find "$SCRIPT_DIR" -name "test-001_*.sh" -type f -executable -print0 | sort -z)
+    done < <(find "$SCRIPT_DIR" -name "test-[0-9][0-9][0-9]_*.sh" -type f -print0 | sort -rz)
     
     if [ ${#test_scripts[@]} -eq 0 ]; then
-        echo "⚠️  No test-001_*.sh scripts found in $SCRIPT_DIR"
-        echo "   Make sure test scripts exist and are executable"
+        echo "⚠️  No test-[0-9][0-9][0-9]_*.sh scripts found in $SCRIPT_DIR"
+        echo "   Make sure test scripts with triple-digit prefixes exist and are executable"
         exit 1
     fi
     
@@ -121,6 +123,14 @@ main() {
         run_test_script "$script"
         print_test_separator
     done
+    
+    # Cleanup backup config files created during testing
+    echo "Cleaning up test artifacts..."
+    local backup_config="${PROJECT_ROOT}/config.${TEST_ENV}.yml.backup.test"
+    if [ -f "$backup_config" ]; then
+        rm -f "$backup_config"
+        echo "✅ Removed backup config file: $backup_config"
+    fi
     
     print_summary
 }
