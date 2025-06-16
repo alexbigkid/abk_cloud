@@ -203,3 +203,6 @@ config.*.yml
 **/terraform.tfstate.backup
 **/.terraform.lock.hcl
 **/backend.tf
+
+#nodejs
+**/node_modules/
