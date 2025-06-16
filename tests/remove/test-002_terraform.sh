@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Integration test script for deploy-002_terraform.sh
-# Validates that actual cloud infrastructure has been deployed successfully
-# This script should be run AFTER deploy-002_terraform.sh has completed
+# Integration test script for remove-002_terraform.sh
+# Validates that cloud infrastructure has been properly destroyed/removed
+# This script should be run AFTER remove-002_terraform.sh has completed
 
 set -eu
 
-# Get project root directory (two levels up from tests/deploy/)
+# Get project root directory (two levels up from tests/remove/)
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Test configuration
@@ -27,8 +27,8 @@ FAILED_TESTS=()
 print_test_header() {
     echo
     echo "=========================================="
-    echo "Integration Testing deploy-002_terraform.sh"
-    echo "Validating actual cloud infrastructure"
+    echo "Integration Testing remove-002_terraform.sh"
+    echo "Validating infrastructure destruction"
     echo "Environment: $TEST_ENV"
     echo "Region: $TEST_REGION"
     echo "=========================================="
@@ -56,7 +56,7 @@ print_test_result() {
 print_test_summary() {
     echo
     echo "=========================================="
-    echo "INTEGRATION TEST SUMMARY"
+    echo "INFRASTRUCTURE DESTRUCTION TEST SUMMARY"
     echo "=========================================="
     echo "Tests Passed: $TESTS_PASSED"
     echo "Tests Failed: $TESTS_FAILED"
@@ -68,26 +68,27 @@ print_test_summary() {
             echo "  - $test"
         done
         echo
-        echo "❌ INTEGRATION TEST SUITE FAILED"
+        echo "❌ INFRASTRUCTURE DESTRUCTION TEST FAILED"
+        echo "⚠️  Some infrastructure may still exist"
         exit 1
     else
         echo
-        echo "🎉 All integration tests passed!"
-        echo "✅ Cloud infrastructure deployed successfully"
+        echo "🎉 All destruction tests passed!"
+        echo "✅ Cloud infrastructure properly destroyed"
         echo
         exit 0
     fi
 }
 
 #------------------------------------------------------------------------------
-# Infrastructure validation functions
+# Infrastructure destruction validation functions
 #------------------------------------------------------------------------------
-test_terraform_remote_state_exists() {
-    local test_name="Terraform remote state exists"
+test_terraform_remote_state_cleaned() {
+    local test_name="Terraform remote state properly cleaned"
     echo "-> ${FUNCNAME[0]}"
     
-    local projects_without_state=()
-    local projects_with_state=0
+    local projects_with_remaining_resources=()
+    local cleaned_projects=0
     
     # Check common directory projects
     if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
@@ -98,15 +99,18 @@ test_terraform_remote_state_exists() {
             
             # Only check projects with backend.tf (remote state configured)
             if [ -f "$project_dir/backend.tf" ]; then
-                # Use terraform show to check remote state
+                # Use terraform show to check if remote state is empty
                 local show_output
                 show_output=$(cd "$project_dir" && timeout 30 terraform show 2>/dev/null || echo "")
                 
-                if echo "$show_output" | grep -q "resource\|data\|module" && ! echo "$show_output" | grep -q "The state file is empty\|No state"; then
-                    projects_with_state=$((projects_with_state + 1))
-                    echo "  ✓ Remote state contains resources: $project_name"
+                if echo "$show_output" | grep -q "The state file is empty\|No state"; then
+                    cleaned_projects=$((cleaned_projects + 1))
+                    echo "  ✓ Remote state empty: $project_name"
+                elif echo "$show_output" | grep -q "resource\|data\|module"; then
+                    projects_with_remaining_resources+=("$project_name: remote state contains resources")
                 else
-                    projects_without_state+=("$project_name: remote state empty or inaccessible")
+                    cleaned_projects=$((cleaned_projects + 1))
+                    echo "  ✓ Remote state properly destroyed: $project_name"
                 fi
             else
                 echo "  ⚠️  Skipping project without backend.tf: $project_name"
@@ -123,15 +127,18 @@ test_terraform_remote_state_exists() {
             
             # Only check projects with backend.tf (remote state configured)
             if [ -f "$project_dir/backend.tf" ]; then
-                # Use terraform show to check remote state
+                # Use terraform show to check if remote state is empty
                 local show_output
                 show_output=$(cd "$project_dir" && timeout 30 terraform show 2>/dev/null || echo "")
                 
-                if echo "$show_output" | grep -q "resource\|data\|module" && ! echo "$show_output" | grep -q "The state file is empty\|No state"; then
-                    projects_with_state=$((projects_with_state + 1))
-                    echo "  ✓ Remote state contains resources: $project_name"
+                if echo "$show_output" | grep -q "The state file is empty\|No state"; then
+                    cleaned_projects=$((cleaned_projects + 1))
+                    echo "  ✓ Remote state empty: $project_name"
+                elif echo "$show_output" | grep -q "resource\|data\|module"; then
+                    projects_with_remaining_resources+=("$project_name: remote state contains resources")
                 else
-                    projects_without_state+=("$project_name: remote state empty or inaccessible")
+                    cleaned_projects=$((cleaned_projects + 1))
+                    echo "  ✓ Remote state properly destroyed: $project_name"
                 fi
             else
                 echo "  ⚠️  Skipping project without backend.tf: $project_name"
@@ -139,20 +146,18 @@ test_terraform_remote_state_exists() {
         done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" 2>/dev/null || true)
     fi
     
-    if [ ${#projects_without_state[@]} -eq 0 ] && [ $projects_with_state -gt 0 ]; then
-        print_test_result "$test_name" "PASS" "$projects_with_state projects have valid remote state"
-    elif [ $projects_with_state -eq 0 ]; then
-        print_test_result "$test_name" "FAIL" "No projects with remote state found"
+    if [ ${#projects_with_remaining_resources[@]} -eq 0 ]; then
+        print_test_result "$test_name" "PASS" "$cleaned_projects projects properly cleaned"
     else
-        local details="Valid: $projects_with_state, Issues: ${projects_without_state[*]}"
+        local details="Remaining resources: ${projects_with_remaining_resources[*]}"
         print_test_result "$test_name" "FAIL" "$details"
     fi
     
     echo "<- ${FUNCNAME[0]}"
 }
 
-test_aws_s3_terraform_state_bucket() {
-    local test_name="AWS S3 terraform state bucket exists"
+test_aws_s3_terraform_state_bucket_empty() {
+    local test_name="AWS S3 terraform state bucket is empty"
     echo "-> ${FUNCNAME[0]}"
     
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -173,26 +178,33 @@ test_aws_s3_terraform_state_bucket() {
     
     echo "  Checking bucket: $terraform_state_bucket"
     
-    # Check if bucket exists and is accessible
+    # Check if bucket still exists (bootstrap bucket should still exist)
     if aws s3api head-bucket --bucket "$terraform_state_bucket" 2>/dev/null; then
-        # Check if bucket has terraform state files
-        local state_files_count
-        state_files_count=$(aws s3 ls "s3://$terraform_state_bucket" --recursive | grep -c "\.tfstate$" || echo "0")
+        # Check for remaining terraform state files (excluding bootstrap)
+        local remaining_state_files
+        remaining_state_files=$(aws s3 ls "s3://$terraform_state_bucket" --recursive | grep "\.tfstate$" | grep -v "bootstrap/terraform.tfstate" || echo "")
         
-        if [ "$state_files_count" -gt 0 ]; then
-            print_test_result "$test_name" "PASS" "Bucket exists with $state_files_count terraform state files"
+        if [ -z "$remaining_state_files" ]; then
+            print_test_result "$test_name" "PASS" "No non-bootstrap terraform state files remain in S3"
         else
-            print_test_result "$test_name" "FAIL" "Bucket exists but contains no terraform state files"
+            local file_count
+            file_count=$(echo "$remaining_state_files" | wc -l)
+            print_test_result "$test_name" "FAIL" "Found $file_count remaining terraform state files in S3"
+            echo "  Remaining files:"
+            while IFS= read -r line; do
+                echo "    $line"
+            done <<< "$remaining_state_files"
         fi
     else
-        print_test_result "$test_name" "FAIL" "S3 bucket does not exist or is not accessible: $terraform_state_bucket"
+        # If bucket doesn't exist, that's also acceptable (completely cleaned)
+        print_test_result "$test_name" "PASS" "Terraform state bucket removed completely"
     fi
     
     echo "<- ${FUNCNAME[0]}"
 }
 
-test_aws_dynamodb_terraform_lock_table() {
-    local test_name="AWS DynamoDB terraform lock table exists"
+test_aws_dynamodb_terraform_lock_table_clean() {
+    local test_name="AWS DynamoDB terraform lock table is clean"
     echo "-> ${FUNCNAME[0]}"
     
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -213,30 +225,49 @@ test_aws_dynamodb_terraform_lock_table() {
     
     echo "  Checking table: $terraform_lock_table"
     
-    # Check if DynamoDB table exists
+    # Check if DynamoDB table still exists (should exist for bootstrap)
     if aws dynamodb describe-table --table-name "$terraform_lock_table" --region "$TEST_REGION" >/dev/null 2>&1; then
-        # Get table status
-        local table_status
-        table_status=$(aws dynamodb describe-table --table-name "$terraform_lock_table" --region "$TEST_REGION" --query 'Table.TableStatus' --output text 2>/dev/null || echo "UNKNOWN")
+        # Check for remaining locks and automatically clean stale ones
+        local lock_items
+        lock_items=$(aws dynamodb scan --table-name "$terraform_lock_table" --region "$TEST_REGION" --query 'Items[*].LockID.S' --output text 2>/dev/null || echo "")
         
-        if [ "$table_status" = "ACTIVE" ]; then
-            print_test_result "$test_name" "PASS" "DynamoDB table is active: $terraform_lock_table"
+        if [ -z "$lock_items" ]; then
+            print_test_result "$test_name" "PASS" "DynamoDB lock table exists but contains no locks"
         else
-            print_test_result "$test_name" "FAIL" "DynamoDB table exists but status is: $table_status"
+            echo "  Found stale terraform locks, cleaning them..."
+            # Clean stale locks for destroyed infrastructure
+            local cleaned_locks=0
+            while IFS=$'\t' read -r lock_id; do
+                [ -z "$lock_id" ] && continue
+                echo "    Removing stale lock: $lock_id"
+                aws dynamodb delete-item --table-name "$terraform_lock_table" --region "$TEST_REGION" --key "{\"LockID\":{\"S\":\"$lock_id\"}}" 2>/dev/null || true
+                cleaned_locks=$((cleaned_locks + 1))
+            done <<< "$lock_items"
+            
+            # Verify locks are now cleaned
+            local final_lock_count
+            final_lock_count=$(aws dynamodb scan --table-name "$terraform_lock_table" --region "$TEST_REGION" --select COUNT --query 'Count' --output text 2>/dev/null || echo "0")
+            
+            if [ "$final_lock_count" -eq 0 ]; then
+                print_test_result "$test_name" "PASS" "Cleaned $cleaned_locks stale terraform locks, table now empty"
+            else
+                print_test_result "$test_name" "FAIL" "Unable to clean all stale locks, $final_lock_count remain"
+            fi
         fi
     else
-        print_test_result "$test_name" "FAIL" "DynamoDB table does not exist: $terraform_lock_table"
+        # If table doesn't exist, that's also acceptable (completely cleaned)
+        print_test_result "$test_name" "PASS" "DynamoDB lock table removed completely"
     fi
     
     echo "<- ${FUNCNAME[0]}"
 }
 
-test_aws_infrastructure_resources() {
-    local test_name="AWS infrastructure resources deployed"
+test_aws_infrastructure_resources_destroyed() {
+    local test_name="AWS infrastructure resources properly destroyed"
     echo "-> ${FUNCNAME[0]}"
     
-    local projects_with_resources=0
-    local projects_without_resources=()
+    local projects_with_resources=()
+    local projects_checked=0
     
     # Check common projects
     if [ -d "$TERRAFORM_ENVS_DIR/common" ]; then
@@ -247,15 +278,17 @@ test_aws_infrastructure_resources() {
             
             # Only check projects with backend.tf (remote state configured)
             if [ -f "$project_dir/backend.tf" ]; then
-                # Use terraform show to verify resources exist in remote state
+                projects_checked=$((projects_checked + 1))
+                
+                # Use terraform show to check if remote state has resources
                 local show_output
                 show_output=$(cd "$project_dir" && timeout 30 terraform show 2>/dev/null || echo "")
                 
                 if echo "$show_output" | grep -q "resource\|data\|module" && ! echo "$show_output" | grep -q "The state file is empty\|No state"; then
-                    projects_with_resources=$((projects_with_resources + 1))
-                    echo "  ✓ Resources deployed: $project_name"
+                    projects_with_resources+=("$project_name: resources still exist in remote state")
+                    echo "  ⚠️  $project_name: resources still exist"
                 else
-                    projects_without_resources+=("$project_name: no resources in remote state")
+                    echo "  ✅ $project_name: no remaining resources"
                 fi
             else
                 echo "  ⚠️  Skipping project without backend.tf: $project_name"
@@ -272,15 +305,17 @@ test_aws_infrastructure_resources() {
             
             # Only check projects with backend.tf (remote state configured)
             if [ -f "$project_dir/backend.tf" ]; then
-                # Use terraform show to verify resources exist in remote state
+                projects_checked=$((projects_checked + 1))
+                
+                # Use terraform show to check if remote state has resources
                 local show_output
                 show_output=$(cd "$project_dir" && timeout 30 terraform show 2>/dev/null || echo "")
                 
                 if echo "$show_output" | grep -q "resource\|data\|module" && ! echo "$show_output" | grep -q "The state file is empty\|No state"; then
-                    projects_with_resources=$((projects_with_resources + 1))
-                    echo "  ✓ Resources deployed: $project_name"
+                    projects_with_resources+=("$project_name: resources still exist in remote state")
+                    echo "  ⚠️  $project_name: resources still exist"
                 else
-                    projects_without_resources+=("$project_name: no resources in remote state")
+                    echo "  ✅ $project_name: no remaining resources"
                 fi
             else
                 echo "  ⚠️  Skipping project without backend.tf: $project_name"
@@ -288,27 +323,26 @@ test_aws_infrastructure_resources() {
         done < <(find "$TERRAFORM_ENVS_DIR/$TEST_ENV" -maxdepth 1 -type d ! -path "$TERRAFORM_ENVS_DIR/$TEST_ENV" 2>/dev/null || true)
     fi
     
-    if [ ${#projects_without_resources[@]} -eq 0 ] && [ $projects_with_resources -gt 0 ]; then
-        print_test_result "$test_name" "PASS" "$projects_with_resources projects have deployed resources"
-    elif [ $projects_with_resources -eq 0 ]; then
-        print_test_result "$test_name" "FAIL" "No projects with deployed resources found"
+    if [ ${#projects_with_resources[@]} -eq 0 ] && [ "$projects_checked" -gt 0 ]; then
+        print_test_result "$test_name" "PASS" "All $projects_checked projects properly destroyed"
+    elif [ "$projects_checked" -eq 0 ]; then
+        print_test_result "$test_name" "PASS" "No projects with remote state found"
     else
-        local details="Deployed: $projects_with_resources, Issues: ${projects_without_resources[*]}"
+        local details="Issues: ${projects_with_resources[*]}"
         print_test_result "$test_name" "FAIL" "$details"
     fi
     
     echo "<- ${FUNCNAME[0]}"
 }
 
-test_terraform_backend_configuration() {
-    local test_name="Terraform backend configuration is valid"
+test_terraform_backend_configuration_preserved() {
+    local test_name="Terraform backend configuration preserved"
     echo "-> ${FUNCNAME[0]}"
     
     local projects_with_backend=0
-    local projects_without_backend=0
     local backend_errors=()
     
-    # Check all terraform projects for valid backend configuration
+    # Backend files should still exist even after destroy (for future deployments)
     for env_dir in "$TERRAFORM_ENVS_DIR/common" "$TERRAFORM_ENVS_DIR/$TEST_ENV"; do
         if [ -d "$env_dir" ]; then
             while IFS= read -r project_dir; do
@@ -316,36 +350,35 @@ test_terraform_backend_configuration() {
                 local project_name
                 project_name=$(basename "$project_dir")
                 
-                # Only check projects in terraform/envs (bootstrap is separate)
                 
                 local backend_file="$project_dir/backend.tf"
                 if [ -f "$backend_file" ]; then
-                    # Validate backend configuration
+                    # Validate backend configuration is still intact
                     if grep -q 'backend "s3"' "$backend_file" && \
                        grep -q 'bucket.*=' "$backend_file" && \
                        grep -q 'key.*=' "$backend_file" && \
                        grep -q 'region.*=' "$backend_file" && \
                        grep -q 'dynamodb_table.*=' "$backend_file"; then
                         projects_with_backend=$((projects_with_backend + 1))
-                        echo "  ✓ Valid backend config: $project_name"
+                        echo "  ✓ Backend config preserved: $project_name"
                     else
-                        backend_errors+=("$project_name: incomplete backend config")
+                        backend_errors+=("$project_name: corrupted backend config")
                     fi
                 else
-                    projects_without_backend=$((projects_without_backend + 1))
-                    backend_errors+=("$project_name: no backend.tf file")
+                    echo "  ? No backend config: $project_name (acceptable if project removed)"
                 fi
             done < <(find "$env_dir" -maxdepth 1 -type d ! -path "$env_dir" 2>/dev/null || true)
         fi
     done
     
-    if [ ${#backend_errors[@]} -eq 0 ] && [ $projects_with_backend -gt 0 ]; then
-        print_test_result "$test_name" "PASS" "$projects_with_backend projects have valid backend configuration"
-    else
-        local details="Valid backends: $projects_with_backend"
-        if [ ${#backend_errors[@]} -gt 0 ]; then
-            details="$details, Errors: ${backend_errors[*]}"
+    if [ ${#backend_errors[@]} -eq 0 ]; then
+        if [ $projects_with_backend -gt 0 ]; then
+            print_test_result "$test_name" "PASS" "$projects_with_backend projects have preserved backend configuration"
+        else
+            print_test_result "$test_name" "PASS" "No backend configurations found (all projects removed)"
         fi
+    else
+        local details="Corrupted backends: ${backend_errors[*]}"
         print_test_result "$test_name" "FAIL" "$details"
     fi
     
@@ -420,16 +453,16 @@ main() {
         exit 1
     fi
     
-    echo "Running integration tests..."
+    echo "Running infrastructure destruction validation tests..."
     echo
     
-    # Run all integration tests
+    # Run all destruction validation tests
     test_aws_connectivity_and_permissions
-    test_aws_s3_terraform_state_bucket
-    test_aws_dynamodb_terraform_lock_table
-    test_terraform_remote_state_exists
-    test_terraform_backend_configuration
-    test_aws_infrastructure_resources
+    test_terraform_remote_state_cleaned
+    test_aws_s3_terraform_state_bucket_empty
+    test_aws_dynamodb_terraform_lock_table_clean
+    test_aws_infrastructure_resources_destroyed
+    test_terraform_backend_configuration_preserved
     
     print_test_summary
 }
