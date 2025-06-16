@@ -1,0 +1,67 @@
+# Gitleaks configuration file
+# See https://github.com/gitleaks/gitleaks for more configuration options
+
+title = "abk_cloud gitleaks config"
+
+# Global settings
+[extend]
+# Use the default gitleaks rules as base
+useDefault = true
+
+# Additional rules specific to this project
+[[rules]]
+description = "AWS Account ID"
+id = "aws-account-id"
+regex = '''[0-9]{12}'''
+path = '''.*\.(yml|yaml|json|tf|tfvars)$'''
+
+[[rules]]
+description = "Potential hardcoded credentials"
+id = "hardcoded-credentials"
+regex = '''(?i)(password|passwd|pwd|secret|key|token|credential)\s*[:=]\s*['"][^'"\s]{8,}['"]'''
+
+# Allowlist - files and patterns to ignore
+[allowlist]
+description = "Allowlist for known false positives"
+paths = [
+    '''\.git/''',
+    '''node_modules/''',
+    '''\.terraform/''',
+    '''terraform\.tfstate.*''',
+    '''\.backup\.test$''',
+    '''tests/.*''',
+    '''CLAUDE\.md''',
+]
+
+# Ignore test files and examples
+regexes = [
+    '''example.*''',
+    '''test.*''',
+    '''README\.md''',
+    '''CLAUDE\.md''',
+    '''test-key''',
+    '''test-secret''',
+    '''your-key''',
+    '''your-secret''',
+    '''AWS_ACCESS_KEY_ID.*=.*test.*''',
+    '''AWS_SECRET_ACCESS_KEY.*=.*test.*''',
+    '''export.*AWS.*KEY.*test''',
+]
+
+# Stopwords - ignore common false positives
+stopwords = [
+    "commit",
+    "github",
+    "example",
+    "test",
+    "placeholder",
+    "changeme",
+    "replace",
+    "insert",
+    "your-key",
+    "your-secret",
+    "test-key",
+    "test-secret",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+]
