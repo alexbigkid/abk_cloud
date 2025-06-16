@@ -144,6 +144,7 @@
         "PYTHONPATH",
         "reactivex",
         "tfenv",
+        "tfstate",
         "tfvars",
         "yolox"
     ]

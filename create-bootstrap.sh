@@ -29,101 +29,157 @@ PrintUsageAndExitWithCode() {
     exit "$1"
 }
 
-CheckBootstrapExists() {
+
+SetupBootstrapVariables() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
     local LCL_ENV="$1"
+    local LCL_REGION="$2"
     local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
+    local LCL_TF_VARS_FILE="$BOOTSTRAP_DIR/terraform.tfvars.json"
     local LCL_EXIT_CODE=0
-    
-    # Check if environment config exists
-    if [ ! -f "$LCL_ENV_CONFIG" ]; then
-        PrintTrace "$TRACE_INFO" "Environment config not found - this is a fresh setup"
-        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
-        return "$LCL_EXIT_CODE"
-    fi
-    
-    # Get bootstrap bucket name from config
-    local LCL_BOOTSTRAP_BUCKET
-    LCL_BOOTSTRAP_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_bootstrap_state_s3_bucket" "$LCL_ENV_CONFIG")
-    
-    if [ -z "$LCL_BOOTSTRAP_BUCKET" ] || [ "$LCL_BOOTSTRAP_BUCKET" = "null" ]; then
-        PrintTrace "$TRACE_ERROR" "Could not determine bootstrap bucket name from config"
+
+    # Always run setup script to ensure up-to-date environment configuration
+    PrintTrace "$TRACE_INFO" "Running deploy-001_setup-env.sh to ensure up-to-date environment setup..."
+    # Run setup script to create/update environment config
+    if ! ./deploy-001_setup-env.sh "$LCL_ENV" "$LCL_REGION"; then
+        PrintTrace "$TRACE_ERROR" "Failed to setup environment config"
         LCL_EXIT_CODE=1
         PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
         return "$LCL_EXIT_CODE"
     fi
-    
-    PrintTrace "$TRACE_INFO" "Checking if bootstrap infrastructure already exists..."
-    PrintTrace "$TRACE_INFO" "Bootstrap bucket: $LCL_BOOTSTRAP_BUCKET"
-    
-    # Check if bootstrap bucket exists using AWS CLI first, fallback to terraform check
-    local bucket_exists=false
-    local state_file_exists=false
-    
-    # Try AWS CLI first
-    if AWS_PROFILE="" aws s3api head-bucket --bucket "$LCL_BOOTSTRAP_BUCKET" 2>/dev/null; then
-        bucket_exists=true
-        PrintTrace "$TRACE_INFO" "Bootstrap bucket exists (confirmed via AWS CLI)"
-        
-        # Check if bootstrap state file exists in S3
-        if AWS_PROFILE="" aws s3api head-object --bucket "$LCL_BOOTSTRAP_BUCKET" --key "bootstrap/terraform.tfstate" 2>/dev/null; then
-            state_file_exists=true
-            PrintTrace "$TRACE_INFO" "State file found at: s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate"
-        fi
-    else
-        PrintTrace "$TRACE_INFO" "AWS CLI check failed - trying fallback approaches..."
-        
-        # Fallback 1: Try to download state file directly (best effort)
-        local local_state_file="$BOOTSTRAP_DIR/terraform.tfstate"
-        PrintTrace "$TRACE_INFO" "Attempting to download state file as fallback check..."
-        
-        if timeout 10 aws s3 cp "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" "$local_state_file.download_test" 2>/dev/null; then
-            # Successfully downloaded - infrastructure exists
-            PrintTrace "$TRACE_INFO" "Successfully downloaded state file - infrastructure exists"
-            rm -f "$local_state_file.download_test"  # Clean up test file
-            bucket_exists=true
-            state_file_exists=true
-        else
-            PrintTrace "$TRACE_INFO" "Could not download state file - checking local state..."
-            
-            # Fallback 2: Check local state file
-            if [ -f "$local_state_file" ]; then
-                # Check if the state file contains resources
-                local resource_count
-                resource_count=$(grep -c '"type":' "$local_state_file" 2>/dev/null || echo "0")
-                # Ensure resource_count is a valid number
-                if [[ "$resource_count" =~ ^[0-9]+$ ]] && [ "$resource_count" -gt 0 ]; then
-                    PrintTrace "$TRACE_INFO" "Local state file contains $resource_count resources"
-                    PrintTrace "$TRACE_INFO" "Bootstrap infrastructure appears to exist locally"
-                    bucket_exists=true
-                    state_file_exists=true
-                    PrintTrace "$TRACE_WARNING" "Cannot verify S3 state file due to AWS CLI access issues"
-                    PrintTrace "$TRACE_WARNING" "Assuming state file exists to prevent recreation"
-                else
-                    PrintTrace "$TRACE_INFO" "Local state file is empty or contains no resources"
-                    PrintTrace "$TRACE_INFO" "Will attempt bootstrap creation"
-                fi
-            else
-                PrintTrace "$TRACE_INFO" "No local state file found"
-                PrintTrace "$TRACE_INFO" "Will attempt bootstrap creation"
-            fi
-        fi
-    fi
-    
-    # Determine what to do based on findings
-    if [ "$bucket_exists" = true ] && [ "$state_file_exists" = true ]; then
-        PrintTrace "$TRACE_INFO" "Bootstrap infrastructure already exists!"
-        LCL_EXIT_CODE=2  # Special exit code for "already exists"
-    elif [ "$bucket_exists" = true ]; then
-        PrintTrace "$TRACE_INFO" "Bootstrap bucket exists but state file status unclear"
-        PrintTrace "$TRACE_INFO" "This may indicate a partial bootstrap - proceeding with creation"
-    else
-        PrintTrace "$TRACE_INFO" "Bootstrap infrastructure does not exist - proceeding with creation"
-    fi
-    
+    PrintTrace "$TRACE_INFO" "Environment config setup completed successfully"
+
+    # Extract bootstrap configuration from environment config
+    local LCL_BOOTSTRAP_TF_VARS_JSON
+    LCL_BOOTSTRAP_TF_VARS_JSON=$(yq -o=json ".terraform.terraformStateBootstrap" "$LCL_ENV_CONFIG")
+    PrintTrace "$TRACE_DEBUG" "Bootstrap terraform vars: $LCL_BOOTSTRAP_TF_VARS_JSON"
+
+    # Write terraform vars file to bootstrap directory
+    printf "%s" "$LCL_BOOTSTRAP_TF_VARS_JSON" > "$LCL_TF_VARS_FILE"
+    PrintTrace "$TRACE_INFO" "Generated terraform vars for bootstrap: $LCL_TF_VARS_FILE"
+
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
     return "$LCL_EXIT_CODE"
 }
+
+
+DetermineBootstrapAction() {
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
+    local LCL_ENV="$1"
+    local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
+    local LCL_STATE_FILE="$BOOTSTRAP_DIR/terraform.tfstate"
+
+    # Get bootstrap bucket name from config
+    local LCL_BOOTSTRAP_BUCKET
+    LCL_BOOTSTRAP_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_bootstrap_state_s3_bucket" "$LCL_ENV_CONFIG")
+
+    if [ -z "$LCL_BOOTSTRAP_BUCKET" ] || [ "$LCL_BOOTSTRAP_BUCKET" = "null" ]; then
+        PrintTrace "$TRACE_ERROR" "Could not determine bootstrap bucket name from config"
+        PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (1)"
+        return 1
+    fi
+
+    PrintTrace "$TRACE_INFO" "Analyzing bootstrap infrastructure state..."
+    PrintTrace "$TRACE_INFO" "Bootstrap bucket: $LCL_BOOTSTRAP_BUCKET"
+
+    # Check 1: S3 terraform state file exists
+    local s3_tf_state_file_exists=false
+    # if AWS_PROFILE="" aws s3 ls "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" >/dev/null 2>&1; then
+    if aws s3 ls "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" >/dev/null 2>&1; then
+        s3_tf_state_file_exists=true
+        PrintTrace "$TRACE_INFO" "✓ S3 terraform state file exists"
+    else
+        PrintTrace "$TRACE_INFO" "✗ S3 terraform state file does not exist"
+    fi
+
+    # Check 2: Local terraform state file exists and has resources
+    local local_tf_file_exists=false
+    if [ -f "$LCL_STATE_FILE" ]; then
+        PrintTrace "$TRACE_INFO" "Local terraform state file exist"
+        local resource_count
+        resource_count=$(grep -c '"type":' "$LCL_STATE_FILE" 2>/dev/null || echo "0")
+        if [[ "$resource_count" =~ ^[0-9]+$ ]] && [ "$resource_count" -gt 0 ]; then
+            local_tf_file_exists=true
+            PrintTrace "$TRACE_INFO" "✓ Local terraform state file exists with $resource_count resources"
+        else
+            PrintTrace "$TRACE_INFO" "✗ Local terraform state file is empty or invalid"
+        fi
+    else
+        PrintTrace "$TRACE_INFO" "✗ Local terraform state file does not exist"
+    fi
+
+    # Simple 2x2 decision matrix
+    if [ "$s3_tf_state_file_exists" = true ]; then
+        PrintTrace "$TRACE_INFO" "S3 terraform state file exists"
+        if [ "$local_tf_file_exists" = true ]; then
+            PrintTrace "$TRACE_INFO" "Local terraform state file exists"
+            PrintTrace "$TRACE_INFO" "ACTION: Infrastructure ready - everything already set up"
+            echo "✅ INFRASTRUCTURE_READY"
+            echo "Bootstrap infrastructure exists both remotely and locally"
+        else
+            PrintTrace "$TRACE_INFO" "Local terraform state file does NOT exist"
+            PrintTrace "$TRACE_INFO" "ACTION: Download terraform state file from S3"
+            DownloadExistingBootstrapState "$LCL_ENV"
+            echo "✅ INFRASTRUCTURE_READY"
+            echo "Bootstrap infrastructure downloaded from S3"
+        fi
+    else
+        PrintTrace "$TRACE_INFO" "S3 terraform state file does NOT exist"
+        if [ "$local_tf_file_exists" = true ]; then
+            PrintTrace "$TRACE_INFO" "Local terraform state file exists"
+            PrintTrace "$TRACE_INFO" "ACTION: Upload local state to S3 (ensure bucket exists)"
+            # Ensure bucket exists before upload
+            EnsureBootstrapBucket "$LCL_BOOTSTRAP_BUCKET"
+            UploadBootstrapState "$LCL_ENV"
+            echo "✅ INFRASTRUCTURE_READY"
+            echo "Local terraform state uploaded to S3"
+        else
+            PrintTrace "$TRACE_INFO" "Local terraform state file does NOT exist"
+            PrintTrace "$TRACE_INFO" "ACTION: Create new infrastructure (ensure bucket exists)"
+            # Ensure bucket exists before creation
+            EnsureBootstrapBucket "$LCL_BOOTSTRAP_BUCKET"
+            # Create bootstrap infrastructure
+            if ! DeployBootstrap; then
+                PrintTrace "$TRACE_ERROR" "Bootstrap creation failed"
+                PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (1)"
+                return 1
+            fi
+            # Upload the newly created state
+            UploadBootstrapState "$LCL_ENV"
+            PrintBootstrapSummary "$LCL_ENV"
+            echo "✅ INFRASTRUCTURE_READY"
+            echo "Bootstrap infrastructure created and uploaded successfully"
+        fi
+    fi
+
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
+    return 0
+}
+
+EnsureBootstrapBucket() {
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
+    local LCL_BUCKET="$1"
+
+    PrintTrace "$TRACE_INFO" "Ensuring bootstrap bucket exists: $LCL_BUCKET"
+
+    # Check if bucket exists
+    if aws s3api head-bucket --bucket "$LCL_BUCKET" 2>/dev/null; then
+        PrintTrace "$TRACE_INFO" "✓ Bootstrap bucket already exists"
+    else
+        PrintTrace "$TRACE_INFO" "Creating bootstrap bucket: $LCL_BUCKET"
+        if aws s3 mb "s3://$LCL_BUCKET" 2>/dev/null; then
+            PrintTrace "$TRACE_INFO" "✓ Bootstrap bucket created successfully"
+        else
+            PrintTrace "$TRACE_ERROR" "Failed to create bootstrap bucket"
+            PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (1)"
+            return 1
+        fi
+    fi
+
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
+    return 0
+}
+
 
 DownloadExistingBootstrapState() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
@@ -131,22 +187,22 @@ DownloadExistingBootstrapState() {
     local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
     local LCL_EXIT_CODE=0
     local LCL_STATE_FILE="$BOOTSTRAP_DIR/terraform.tfstate"
-    
+
     # Get bootstrap bucket name from config
     local LCL_BOOTSTRAP_BUCKET
     LCL_BOOTSTRAP_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_bootstrap_state_s3_bucket" "$LCL_ENV_CONFIG")
-    
+
     echo
     echo "📥 DOWNLOADING EXISTING BOOTSTRAP STATE"
     echo "=================================================================="
     echo "Bootstrap infrastructure already exists for environment '$LCL_ENV'"
     echo "Downloading existing state file to continue working with existing infrastructure"
     echo
-    
+
     PrintTrace "$TRACE_INFO" "Downloading state file from S3..."
     PrintTrace "$TRACE_INFO" "Source: s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate"
     PrintTrace "$TRACE_INFO" "Target: $LCL_STATE_FILE"
-    
+
     # Check if we already have a local state file
     if [ -f "$LCL_STATE_FILE" ]; then
         local resource_count
@@ -156,7 +212,7 @@ DownloadExistingBootstrapState() {
             echo "✅ Local state file already present"
             echo "✅ Ready to work with existing bootstrap infrastructure"
             # Try to upload local state to S3 as backup
-            if AWS_PROFILE="" aws s3 cp "$LCL_STATE_FILE" "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" 2>/dev/null; then
+            if aws s3 cp "$LCL_STATE_FILE" "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" 2>/dev/null; then
                 PrintTrace "$TRACE_INFO" "Local state uploaded to S3 as backup"
                 echo "✅ State file backed up to S3"
             else
@@ -166,7 +222,7 @@ DownloadExistingBootstrapState() {
             return "$LCL_EXIT_CODE"
         fi
     fi
-    
+
     # Try to download the existing state file from S3
     PrintTrace "$TRACE_INFO" "Attempting to download state file from S3..."
     if timeout 10 aws s3 cp "s3://$LCL_BOOTSTRAP_BUCKET/bootstrap/terraform.tfstate" "$LCL_STATE_FILE" 2>/dev/null; then
@@ -186,49 +242,13 @@ DownloadExistingBootstrapState() {
         echo "   Note: Infrastructure will be managed from local state only"
         # Don't fail if download fails - continue without remote state
     fi
-    
+
     echo "=================================================================="
-    
-    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
-    return "$LCL_EXIT_CODE"
-}
-
-SetupBootstrapVariables() {
-    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
-    local LCL_ENV="$1"
-    local LCL_REGION="$2"
-    local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
-    local LCL_TF_VARS_FILE="$BOOTSTRAP_DIR/terraform.tfvars.json"
-    local LCL_EXIT_CODE=0
-
-    # Check if environment config exists, create it if needed
-    if [ ! -f "$LCL_ENV_CONFIG" ]; then
-        PrintTrace "$TRACE_INFO" "Environment config file not found: $LCL_ENV_CONFIG"
-        PrintTrace "$TRACE_INFO" "Running deploy-001_setup-env.sh to create it..."
-        
-        # Run setup script to create environment config
-        if ! ./deploy-001_setup-env.sh "$LCL_ENV" "$LCL_REGION"; then
-            PrintTrace "$TRACE_ERROR" "Failed to create environment config"
-            LCL_EXIT_CODE=1
-            PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
-            return "$LCL_EXIT_CODE"
-        fi
-        
-        PrintTrace "$TRACE_INFO" "Environment config created successfully"
-    fi
-
-    # Extract bootstrap configuration from environment config
-    local LCL_BOOTSTRAP_TF_VARS_JSON
-    LCL_BOOTSTRAP_TF_VARS_JSON=$(yq -o=json ".terraform.terraformStateBootstrap" "$LCL_ENV_CONFIG")
-    PrintTrace "$TRACE_DEBUG" "Bootstrap terraform vars: $LCL_BOOTSTRAP_TF_VARS_JSON"
-
-    # Write terraform vars file to bootstrap directory
-    printf "%s" "$LCL_BOOTSTRAP_TF_VARS_JSON" > "$LCL_TF_VARS_FILE"
-    PrintTrace "$TRACE_INFO" "Generated terraform vars for bootstrap: $LCL_TF_VARS_FILE"
 
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
     return "$LCL_EXIT_CODE"
 }
+
 
 DeployBootstrap() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]}"
@@ -248,16 +268,16 @@ DeployBootstrap() {
     # Deploy bootstrap terraform
     (
         cd "$BOOTSTRAP_DIR" || exit "$?"
-        
+
         PrintTrace "$TRACE_INFO" "${YLW}terraform init: terraformStateBootstrap${NC}"
-        AWS_PROFILE="" terraform init -input=false || exit "$?"
-        
+        terraform init -input=false || exit "$?"
+
         PrintTrace "$TRACE_INFO" "${YLW}terraform plan: terraformStateBootstrap${NC}"
-        AWS_PROFILE="" terraform plan || exit "$?"
-        
+        terraform plan || exit "$?"
+
         PrintTrace "$TRACE_INFO" "${YLW}terraform apply: terraformStateBootstrap${NC}"
-        AWS_PROFILE="" terraform apply -input=false -auto-approve || exit "$?"
-        
+        terraform apply -input=false -auto-approve || exit "$?"
+
     ) || LCL_EXIT_CODE="$?"
 
     if [ "$LCL_EXIT_CODE" -eq 0 ]; then
@@ -269,6 +289,7 @@ DeployBootstrap() {
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} ($LCL_EXIT_CODE)"
     return "$LCL_EXIT_CODE"
 }
+
 
 UploadBootstrapState() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
@@ -287,7 +308,7 @@ UploadBootstrapState() {
     # Get S3 bucket name from config (bootstrap-specific bucket)
     local LCL_S3_BUCKET
     LCL_S3_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_bootstrap_state_s3_bucket" "$LCL_ENV_CONFIG")
-    
+
     if [ -z "$LCL_S3_BUCKET" ] || [ "$LCL_S3_BUCKET" = "null" ]; then
         PrintTrace "$TRACE_ERROR" "Could not determine S3 bucket name from config"
         LCL_EXIT_CODE=1
@@ -296,10 +317,10 @@ UploadBootstrapState() {
     fi
 
     PrintTrace "$TRACE_INFO" "Uploading bootstrap state to S3: $LCL_S3_BUCKET"
-    
+
     # Upload state file to S3 bucket
     local LCL_S3_KEY="bootstrap/terraform.tfstate"
-    if AWS_PROFILE="" aws s3 cp "$LCL_STATE_FILE" "s3://$LCL_S3_BUCKET/$LCL_S3_KEY"; then
+    if aws s3 cp "$LCL_STATE_FILE" "s3://$LCL_S3_BUCKET/$LCL_S3_KEY"; then
         PrintTrace "$TRACE_INFO" "Bootstrap state uploaded successfully to s3://$LCL_S3_BUCKET/$LCL_S3_KEY"
         PrintTrace "$TRACE_INFO" "State backup available at: s3://$LCL_S3_BUCKET/$LCL_S3_KEY"
     else
@@ -312,16 +333,17 @@ UploadBootstrapState() {
     return "$LCL_EXIT_CODE"
 }
 
+
 PrintBootstrapSummary() {
     PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ($*)"
     local LCL_ENV="$1"
     local LCL_ENV_CONFIG="config.$LCL_ENV.yml"
-    
+
     echo
     echo "=================================================================="
     echo "                    BOOTSTRAP CREATION COMPLETE"
     echo "=================================================================="
-    
+
     # Extract values from config
     local LCL_TERRAFORM_STATE_BUCKET
     local LCL_BOOTSTRAP_STATE_BUCKET
@@ -329,7 +351,7 @@ PrintBootstrapSummary() {
     LCL_TERRAFORM_STATE_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_state_S3_bucket_name" "$LCL_ENV_CONFIG")
     LCL_BOOTSTRAP_STATE_BUCKET=$(yq -r ".terraform.terraformStateBootstrap.terraform_bootstrap_state_s3_bucket" "$LCL_ENV_CONFIG")
     LCL_DYNAMODB_TABLE=$(yq -r ".terraform.terraformStateBootstrap.dynamodb_terraform_lock_name" "$LCL_ENV_CONFIG")
-    
+
     echo "Environment: $LCL_ENV"
     echo "Terraform State S3 Bucket: $LCL_TERRAFORM_STATE_BUCKET"
     echo "Bootstrap State S3 Bucket: $LCL_BOOTSTRAP_STATE_BUCKET"
@@ -344,9 +366,10 @@ PrintBootstrapSummary() {
     echo "  2. Deploy services: ./deploy-003_services.sh $LCL_ENV us-west-2"
     echo
     echo "=================================================================="
-    
+
     PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
 }
+
 
 #------------------------------------------------------------------------------
 # main
@@ -384,7 +407,7 @@ PrintTrace "$TRACE_INFO" "Region: ${REGION}"
 # Check if we're in CI/CD and warn
 if [ "${CI:-false}" = "true" ]; then
     PrintTrace "$TRACE_WARNING" "Running in CI/CD environment"
-    PrintTrace "$TRACE_WARNING" "Bootstrap state will be lost when CI job completes!"
+    PrintTrace "$TRACE_WARNING" "Bootstrap state might be lost when CI job completes!"
     PrintTrace "$TRACE_WARNING" "Consider running this locally instead"
 fi
 
@@ -394,48 +417,24 @@ if ! SetupBootstrapVariables "$ENV" "$REGION"; then
     exit "$EXIT_CODE_DEPLOYMENT_FAILED"
 fi
 
-# Check if bootstrap already exists
-CheckBootstrapExists "$ENV"
-BOOTSTRAP_CHECK_EXIT_CODE=$?
-PrintTrace "$TRACE_INFO" "Bootstrap check completed with exit code: $BOOTSTRAP_CHECK_EXIT_CODE"
+# Determine and execute bootstrap infrastructure action
+echo
+echo "🔍 ANALYZING BOOTSTRAP INFRASTRUCTURE STATE"
+echo "=================================================================="
+DetermineBootstrapAction "$ENV"
+BOOTSTRAP_ACTION_EXIT_CODE=$?
 
-if [ "$BOOTSTRAP_CHECK_EXIT_CODE" -eq 2 ]; then
-    # Bootstrap already exists - download state if needed and we're ready to use existing infrastructure
-    PrintTrace "$TRACE_INFO" "Bootstrap infrastructure already exists"
-    
-    # Download existing bootstrap state to ensure we have it locally
-    DownloadExistingBootstrapState "$ENV"
-    
-    echo
-    echo "✅ BOOTSTRAP INFRASTRUCTURE ALREADY EXISTS"
-    echo "=================================================================="
-    echo "The bootstrap infrastructure for environment '$ENV' already exists."
-    echo "Local state file is available and ready to use."
-    echo
-    echo "Infrastructure is ready for:"
-    echo "  - Regular terraform deployments: ./deploy-002_terraform.sh $ENV us-west-2"
-    echo "  - Service deployments: ./deploy-003_services.sh $ENV us-west-2"
-    echo "=================================================================="
-    
-    exit 0
-elif [ "$BOOTSTRAP_CHECK_EXIT_CODE" -ne 0 ]; then
-    # Error checking bootstrap status
-    PrintTrace "$TRACE_ERROR" "Failed to check bootstrap status"
+if [ "$BOOTSTRAP_ACTION_EXIT_CODE" -ne 0 ]; then
+    # Error during bootstrap analysis or execution
+    PrintTrace "$TRACE_ERROR" "Bootstrap infrastructure action failed"
     exit "$EXIT_CODE_DEPLOYMENT_FAILED"
 fi
 
-# Create new bootstrap infrastructure
-PrintTrace "$TRACE_INFO" "Creating new bootstrap infrastructure"
-if ! DeployBootstrap; then
-    PrintTrace "$TRACE_ERROR" "Bootstrap creation failed"
-    exit "$EXIT_CODE_DEPLOYMENT_FAILED"
-fi
-
-# Upload state to S3 for backup
-UploadBootstrapState "$ENV"
-
-# Print summary
-PrintBootstrapSummary "$ENV"
+echo "=================================================================="
+echo "Infrastructure is ready for:"
+echo "  - Regular terraform deployments: ./deploy-002_terraform.sh $ENV us-west-2"
+echo "  - Service deployments: ./deploy-003_services.sh $ENV us-west-2"
+echo "=================================================================="
 
 PrintTrace "$TRACE_FUNCTION" "<- $0 ($EXIT_CODE)"
 echo

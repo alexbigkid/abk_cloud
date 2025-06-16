@@ -118,7 +118,7 @@ DeployParallelProjects() {
         # Export function for parallel
         export -f DeployTerraform PrintTrace
         export TRACE_FUNCTION TRACE_INFO TRACE_ERROR YLW NC
-        
+
         if ! echo "$LCL_TERRAFORM_PROJECTS" | parallel --halt now,fail=1 DeployTerraform; then
             LCL_EXIT_CODE="$EXIT_CODE_DEPLOYMENT_FAILED"
         fi

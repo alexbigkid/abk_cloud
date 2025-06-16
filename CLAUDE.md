@@ -20,6 +20,10 @@ export ABK_PRJ_NAME=your-project-name
 export LOG_LEVEL=info
 export AWS_ACCESS_KEY_ID=your-key
 export AWS_SECRET_ACCESS_KEY=your-secret
+
+# Create bootstrap infrastructure (run ONCE per environment)
+# This creates S3 buckets and DynamoDB table for terraform state management
+./create-bootstrap.sh dev us-west-2
 ```
 
 ### Full Deployment
@@ -73,10 +77,24 @@ cd services
 mv services/envs/dev/your-service/publish.sh services/envs/dev/your-service/do_not_publish.sh
 ```
 
+### Bootstrap Infrastructure Management
+```bash
+# Create bootstrap infrastructure (run ONCE per environment)
+# Includes smart detection to prevent overwriting existing infrastructure
+./create-bootstrap.sh dev us-west-2
+
+# The script automatically:
+# - Detects if bootstrap infrastructure already exists
+# - Downloads existing state files from S3 if available
+# - Creates S3 buckets for terraform state storage
+# - Creates DynamoDB table for terraform state locking
+# - Uploads state file to S3 for team collaboration
+```
+
 ### Linting
 ```bash
 # Run shellcheck on all bash scripts
-shellcheck deploy*.sh remove*.sh common-lib.sh install-tools.sh
+shellcheck deploy*.sh remove*.sh create-bootstrap.sh common-lib.sh install-tools.sh
 ```
 
 ## Architecture Overview
@@ -90,18 +108,21 @@ shellcheck deploy*.sh remove*.sh common-lib.sh install-tools.sh
 - **`tests/`**: Integration tests
 
 ### Sequential Deployment Phases
+0. **Bootstrap** (`create-bootstrap.sh`): Create S3 buckets and DynamoDB table for terraform state management (run ONCE per environment)
 1. **Setup Environment** (`deploy-001_setup-env.sh`): Generate config files and Terraform variables
 2. **Terraform** (`deploy-002_terraform.sh`): Deploy cloud infrastructure
 3. **Services** (`deploy-003_services.sh`): Deploy Lambda services
 4. **Tests** (`deploy-004_run-tests.sh`): Execute integration tests
 
 ### Terraform Organization
+- **`terraform/terraformStateBootstrap/`**: Bootstrap infrastructure for terraform state management (S3 + DynamoDB)
 - **`terraform/envs/common/`**: Resources deployed to all environments (deploy first)
 - **`terraform/envs/dev|qa|prod/`**: Environment-specific resources
-- **`terraform/templates/`**: Reusable Terraform modules
+- **`terraform/templates/`**: Reusable Terraform modules including bootstrap template
 
 **Sequential vs Parallel Deployment:**
-- Folders starting with digits (e.g., `000_terraformStateBootstrap`) deploy sequentially
+- Bootstrap infrastructure deployed first via `create-bootstrap.sh`
+- Folders starting with digits (e.g., `000_`, `001_`) deploy sequentially
 - Other folders can deploy in parallel
 
 ### Services Organization
