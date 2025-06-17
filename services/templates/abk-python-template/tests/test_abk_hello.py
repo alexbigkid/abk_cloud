@@ -4,7 +4,6 @@
 import logging
 import os
 import unittest
-from unittest.mock import ANY, call, patch
 
 # Own modules imports
 from src.abk_hello.abk_hello_io import AhLambdaRequestBody, AhLambdaResponseBody
@@ -40,6 +39,7 @@ class TestLambdaResponse:
     """Holds test data for LambdaResponse."""
 
     def __init__(self, status_code: int, body_str: str):
+        """TestLambdaResponse class init."""
         self._resp = {
             "statusCode": status_code,
             "headers": {
@@ -60,18 +60,21 @@ class TestLambdaResponse:
 # class for testing ABK lambda
 # -----------------------------------------------------------------------------
 class TestAbkHello(unittest.TestCase):
-    """Test for abk_hello"""
+    """Test for abk_hello."""
 
     @classmethod
     def setUpClass(cls):
+        """Setup class function."""
         logging.disable(logging.CRITICAL)  # disables logging
         # logging.disable(logging.NOTSET) # enables logging
 
     @classmethod
     def tearDownClass(cls):
+        """Teardown class function."""
         logging.disable(logging.NOTSET)
 
     def setUp(self) -> None:
+        """Setup function."""
         self.maxDiff = None
         self.valid_input = VALID_REQ._asdict()
         return super().setUp()
@@ -105,11 +108,11 @@ class TestAbkHello(unittest.TestCase):
     def test_convert_and_validate_input__throws_given_additional_input_key_is_present(
         self,
     ) -> None:
-        """Validates that exception is thrown when additional keys is present in the lambda request."""
+        """Validates exception is thrown when additional keys is present in the lambda request."""
         lcl_actual_input = self.valid_input
-        lcl_additional_parameter_key = "additional_parameter_value"
-        lcl_actual_input[lcl_additional_parameter_key] = "notAllowed"
-        lcl_exception_msg = f"Additional properties are not allowed ('{lcl_additional_parameter_key}' was unexpected)"
+        lcl_extra_param = "additional_parameter_value"
+        lcl_actual_input[lcl_extra_param] = "notAllowed"
+        lcl_exception_msg = f"Additional properties are not allowed ('{lcl_extra_param}' was unexpected)"  # noqa: E501
         with self.assertRaises(Exception) as exception_message:
             abk_hello.validate_input(lcl_actual_input)
         self.assertIn(lcl_exception_msg, str(exception_message.exception))
