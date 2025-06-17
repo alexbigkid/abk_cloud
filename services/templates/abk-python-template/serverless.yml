@@ -1,4 +1,4 @@
-service: abk-python-template
+service: abk-hello
 frameworkVersion: "3"
 configValidationMode: error
 
