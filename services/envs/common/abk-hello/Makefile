@@ -17,16 +17,6 @@ install_dev:
 install_debug:
 	uv pip install --requirement requirements_debug.txt
 
-# Legacy pip commands (for compatibility)
-install_pip:
-	pip install --requirement requirements.txt
-
-install_dev_pip:
-	pip install --requirement requirements_dev.txt
-
-install_debug_pip:
-	pip install --requirement requirements_debug.txt
-
 export_requirements:
 	uv export --format requirements-txt --no-hashes > requirements.txt
 	uv export --format requirements-txt --no-hashes --extra dev > requirements_dev.txt
@@ -105,19 +95,6 @@ test_1:
 coverage:
 	uv run pytest --cov=src --cov-report=term-missing --cov-report=xml
 
-# Legacy unittest commands (for compatibility)
-unittest:
-	uv run python -m unittest discover --start-directory tests
-
-unittest_v:
-	uv run python -m unittest discover --start-directory tests --verbose
-
-unittest_coverage:
-	uv run coverage run --source ./src --omit ./tests/*  -m unittest discover --start-directory tests
-	@echo
-	uv run coverage report
-	uv run coverage xml
-
 
 # -----------------------------------------------------------------------------
 # Clean up Makefile rules
@@ -158,9 +135,6 @@ help:
 	@echo "  install            - installs required packages using uv"
 	@echo "  install_dev        - installs dev required packages for testing using uv"
 	@echo "  install_debug      - installs debug required packages including dev dependencies using uv"
-	@echo "  install_pip        - installs required packages using legacy pip"
-	@echo "  install_dev_pip    - installs dev required packages for testing using legacy pip"
-	@echo "  install_debug_pip  - installs debug required packages using legacy pip"
 	@echo "  export_requirements - generates requirements.txt files from uv.lock for deployment"
 	@echo "--------------------------------------------------------------------------------"
 	@echo "  test               - runs pytest tests"
@@ -169,9 +143,6 @@ help:
 	@echo "  test_vff           - runs pytest tests with verbose output and fail fast"
 	@echo "  test_1 <test_name> - runs specific pytest test(s) by name pattern"
 	@echo "  coverage           - runs pytest with coverage report"
-	@echo "  unittest           - runs legacy unittest tests"
-	@echo "  unittest_v         - runs legacy unittest tests with verbose output"
-	@echo "  unittest_coverage  - runs legacy unittest tests with coverage"
 	@echo "  clean              - cleans some auto generated build files"
 	@echo "--------------------------------------------------------------------------------"
 	@echo "  settings           - outputs current settings"

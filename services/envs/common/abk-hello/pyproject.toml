@@ -24,10 +24,6 @@ debug = [
 ]
 
 
-[project.scripts]
-test = "unittest:main"
-
-
 [tool.uv]
 managed = true
 
