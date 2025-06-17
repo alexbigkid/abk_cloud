@@ -11,26 +11,26 @@ sync:
 install:
 	uv pip install --requirement requirements.txt
 
-install_test:
-	uv pip install --requirement requirements_test.txt
+install_dev:
+	uv pip install --requirement requirements_dev.txt
 
-install_all:
-	uv pip install --requirement requirements_all.txt
+install_debug:
+	uv pip install --requirement requirements_debug.txt
 
 # Legacy pip commands (for compatibility)
 install_pip:
 	pip install --requirement requirements.txt
 
-install_test_pip:
-	pip install --requirement requirements_test.txt
+install_dev_pip:
+	pip install --requirement requirements_dev.txt
 
-install_all_pip:
-	pip install --requirement requirements_all.txt
+install_debug_pip:
+	pip install --requirement requirements_debug.txt
 
 export_requirements:
 	uv export --format requirements-txt --no-hashes > requirements.txt
-	uv export --format requirements-txt --no-hashes --extra test > requirements_test.txt
-	uv export --format requirements-txt --no-hashes --extra dev > requirements_all.txt
+	uv export --format requirements-txt --no-hashes --extra dev > requirements_dev.txt
+	uv export --format requirements-txt --no-hashes --extra debug > requirements_debug.txt
 
 
 # -----------------------------------------------------------------------------
@@ -146,11 +146,11 @@ help:
 	@echo "--------------------------------------------------------------------------------"
 	@echo "  sync               - sync all dependencies using uv (recommended for local dev)"
 	@echo "  install            - installs required packages using uv"
-	@echo "  install_test       - installs required packages for testing using uv"
-	@echo "  install_all        - installs all packages including dev dependencies using uv"
+	@echo "  install_dev        - installs dev required packages for testing using uv"
+	@echo "  install_debug      - installs debug required packages including dev dependencies using uv"
 	@echo "  install_pip        - installs required packages using legacy pip"
-	@echo "  install_test_pip   - installs required packages for testing using legacy pip"
-	@echo "  install_all_pip    - installs all packages using legacy pip"
+	@echo "  install_dev_pip    - installs dev required packages for testing using legacy pip"
+	@echo "  install_debug_pip  - installs debug required packages using legacy pip"
 	@echo "  export_requirements - generates requirements.txt files from uv.lock for deployment"
 	@echo "--------------------------------------------------------------------------------"
 	@echo "  test               - runs test"

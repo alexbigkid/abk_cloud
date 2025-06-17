@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import ANY, call, patch
 
 # Own modules imports
-from src.abk_hello_io import AhLambdaRequestBody, AhLambdaResponseBody
-from src import abk_hello
+from src.abk_hello.abk_hello_io import AhLambdaRequestBody, AhLambdaResponseBody
+from src.abk_hello import abk_hello
 
 # Third party imports
 from parameterized import parameterized

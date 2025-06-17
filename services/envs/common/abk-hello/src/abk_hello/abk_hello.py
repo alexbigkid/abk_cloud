@@ -10,7 +10,7 @@ from enum import Enum
 from jsonschema import validate
 
 # local imports
-from .abk_hello_io import AhLambdaRequestBody, AhLambdaResponseBody
+from abk_hello.abk_hello_io import AhLambdaRequestBody, AhLambdaResponseBody
 
 # -----------------------------------------------------------------------------
 # variables definitions, file wide access, for lambda to load only once.
