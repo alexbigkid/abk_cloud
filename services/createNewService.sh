@@ -37,13 +37,6 @@ TS_NODE_DEV_DEPENDENCIES=(
     'typescript@~5.1.0'
 )
 
-PY_NODE_DEV_DEPENDENCIES=(
-    'serverless-deployment-bucket'
-    'serverless-domain-manager'
-    'serverless-iam-roles-per-function'
-    'serverless-prune-plugin'
-    'serverless-python-requirements'
-)
 
 
 #------------------------------------------------------------------------------
@@ -87,9 +80,6 @@ InstallNodeDependencies() {
 
             PrintTrace "$TRACE_INFO" "installing node devDependencies"
             npm install --save --save-dev "${TS_NODE_DEV_DEPENDENCIES[@]}"
-        else
-            PrintTrace "$TRACE_INFO" "installing node devDependencies"
-            npm install --save --save-dev "${PY_NODE_DEV_DEPENDENCIES[@]}"
         fi
     ) || LCL_EXIT_CODE=$?
     PrintTrace "$TRACE_INFO" "PWD = $PWD"
@@ -160,6 +150,13 @@ if [ "$SERVICE_TYPE" = "py" ]; then
 fi
 
 InstallNodeDependencies "$SERVICE_TYPE" "$SERVICE_PATH" || EXIT_CODE=$?
+
+# Install serverless plugins from serverless.yml
+PrintTrace "$TRACE_INFO" "Installing serverless plugins for $SERVICE_NAME"
+(
+    cd "$SERVICE_PATH" || { PrintTrace "$TRACE_ERROR" "Failed to change directory to $SERVICE_PATH"; exit 1; }
+    InstallRequiredServerlessPlugins
+) || EXIT_CODE=$?
 
 PrintTrace "$TRACE_FUNCTION" "<- $0 ($EXIT_CODE)"
 echo
