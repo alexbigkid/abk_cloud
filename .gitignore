@@ -206,3 +206,6 @@ config.*.yml
 
 #nodejs
 **/node_modules/
+
+# serverless
+**/.serverless/
