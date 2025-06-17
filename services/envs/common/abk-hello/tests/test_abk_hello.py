@@ -94,7 +94,7 @@ def test_convert_and_validate_input__throws_given_required_input_key_missing(
     lcl_actual_input = valid_input.copy()
     del lcl_actual_input[key_to_delete]
     lcl_exception_msg = f"'{key_to_delete}' is a required property"
-    
+
     with pytest.raises(Exception) as exception_message:
         abk_hello.validate_input(lcl_actual_input)
     # tst_logger.info(f"{exception_message.exception = }")
@@ -108,8 +108,10 @@ def test_convert_and_validate_input__throws_given_additional_input_key_is_presen
     lcl_actual_input = valid_input.copy()
     lcl_extra_param = "additional_parameter_value"
     lcl_actual_input[lcl_extra_param] = "notAllowed"
-    lcl_exception_msg = f"Additional properties are not allowed ('{lcl_extra_param}' was unexpected)"  # noqa: E501
-    
+    lcl_exception_msg = (
+        f"Additional properties are not allowed ('{lcl_extra_param}' was unexpected)"  # noqa: E501
+    )
+
     with pytest.raises(Exception) as exception_message:
         abk_hello.validate_input(lcl_actual_input)
     assert lcl_exception_msg in str(exception_message.value)
@@ -138,7 +140,7 @@ def test_convert_and_validate_input__throws_given_additional_input_key_is_presen
         ("txId", 3.14, "3.14 is not of type 'string"),
         ("txId", {}, "{} is not of type 'string'"),
         ("txId", [], "[] is not of type 'string'"),
-    ]
+    ],
 )
 def test_convert_and_validate_input__throws_given_invalid_input(
     valid_input, p_key: str, p_value, ex_msg: str
@@ -146,7 +148,7 @@ def test_convert_and_validate_input__throws_given_invalid_input(
     """Validates exception is thrown when unexpected value is seen."""
     lcl_actual_input = valid_input.copy()
     lcl_actual_input[p_key] = p_value
-    
+
     with pytest.raises(Exception) as exception_message:
         abk_hello.validate_input(lcl_actual_input)
     # tst_logger.info(f"{exception_message.exception = }")
