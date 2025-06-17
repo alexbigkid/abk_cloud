@@ -1,0 +1,143 @@
+service: abk-hello
+frameworkVersion: "3"
+configValidationMode: error
+
+plugins:
+- serverless-deployment-bucket
+# - serverless-domain-manager
+# - serverless-iam-roles-per-function
+# - serverless-latest-layer-version
+- serverless-prune-plugin
+- serverless-python-requirements
+package:
+  individually: true
+  patterns:
+  - "!**"
+  - "/node_modules/**"
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-west-2'}
+  stackName: "${self:service}-${self:provider.stage}"
+  timeout: 29
+  deploymentBucket:
+    name: ${file(../../../../config.${self:provider.stage}.yml):services.abk_deployment_bucket}
+    serverSideEncryption: AES256
+  iam:
+    role:
+      statements:
+      # for VPC to work
+      - Effect: Allow
+        Action:
+        - "ec2:DescribeNetworkInterfaces"
+        - "ec2:CreateNetworkInterface"
+        - "ec2:DeleteNetworkInterface"
+        - "ec2:DescribeInstances"
+        - "ec2:AttachNetworkInterface"
+        Resource:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-*
+      # for CloudWatch logs to work
+      - Effect: Allow
+        Action:
+        - "logs:CreateLogGroup"
+        - "logs:CreateLogStream"
+        - "logs:PutLogEvents"
+        Resource:
+        - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-*
+  # vpc:
+  #   securityGroupIds:
+  #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_security_group_id}
+  #   subnetIds:
+  #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_subnet_id1}
+  #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_subnet_id2}
+  #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_subnet_id3}
+  environment:
+    # ABK_DB_USR: ${file(../../config.${self:provider.stage}.yml):services.abk_db_usr}
+    # ABK_DB_PSW: ${file(../../config.${self:provider.stage}.yml):services.abk_db_psw}
+    # ABK_DB_HOST: ${file(../../config.${self:provider.stage}.yml):services.abk_db_host}
+    # ABK_DB_PORT: ${file(../../config.${self:provider.stage}.yml):services.abk_db_port}
+    # ABK_DB_NAME: ${file(../../config.${self:provider.stage}.yml):services.abk_db_name}
+    # LOG_LEVEL: ${file(../../config.${self:provider.stage}.yml):services.abk_log_level}
+    PYTHONPATH: src
+
+custom:
+  version: 1.0
+  # domain:
+  #   local: 'a6i0.net'
+  #   dev: 'a6i0.net'
+  #   qa: 'a6i1.net'
+  #   prod: 'globallogic.co'
+  # customDomain:
+  #   domainName: ${self:service}.${self:custom.domain.${self:provider.stage}}
+  #   stage: ${self:provider.stage}
+  #   createRoute53Record: true
+  prune:
+    # comes from serverless-prune-plugin
+    automatic: true # Enable auto pruning
+    number: 2 # keeps this number of versions of lambdas and CloudFormation stacks
+
+functions:
+  abk-hello:
+    handler: src/abk_hello.handler
+    name: ${self:service}-${self:provider.stage}-abkHello
+    description: "ABK hello Lambda function"
+    package:
+      patterns:
+      - src/abk_hello*.py
+    events:
+    - http:
+        path: abk-hello
+        method: GET
+        # cors: true
+        # authorizer:
+        #   type: COGNITO_USER_POOLS
+        #   authorizerId:
+        #     Ref: ApiGatewayAuthorizer
+  # abk-hello-post:
+  #   handler: src/abk_hello_post.handler
+  #   name: ${self:service}-${self:provider.stage}-abkHelloPost
+  #   description: 'ABK Hello template POST lambda example'
+  #   events:
+  #     - http:
+  #         path: abk-hello-post
+  #         method: POST
+  #         cors: true
+  #         authorizer:
+  #           type: COGNITO_USER_POOLS
+  #           authorizerId:
+  #             Ref: ApiGatewayAuthorizer
+
+# resources:
+#   Resources:
+#     GatewayResponseDefault4XX:
+#       Type: 'AWS::ApiGateway::GatewayResponse'
+#       Properties:
+#         ResponseParameters:
+#           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+#           gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+#         ResponseType: DEFAULT_4XX
+#         RestApiId:
+#           Ref: 'ApiGatewayRestApi'
+#     GatewayResponseDefault5XX:
+#       Type: 'AWS::ApiGateway::GatewayResponse'
+#       Properties:
+#         ResponseParameters:
+#           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+#           gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+#         ResponseType: DEFAULT_5XX
+#         RestApiId:
+#           Ref: 'ApiGatewayRestApi'
+#     ApiGatewayAuthorizer:
+#       DependsOn:
+#       - ApiGatewayRestApi
+#       Type: AWS::ApiGateway::Authorizer
+#       Properties:
+#         Name: cognito-authorizer
+#         IdentitySource: method.request.header.Authorization
+#         RestApiId:
+#           Ref: ApiGatewayRestApi
+#         Type: COGNITO_USER_POOLS
+#         ProviderARNs:
+#         - ${file(../../config.${self:provider.stage}.yml):services.abk_users_pool_arn}
