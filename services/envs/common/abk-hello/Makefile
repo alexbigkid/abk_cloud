@@ -27,6 +27,11 @@ install_test_pip:
 install_all_pip:
 	pip install --requirement requirements_all.txt
 
+export_requirements:
+	uv export --format requirements-txt --no-hashes > requirements.txt
+	uv export --format requirements-txt --no-hashes --extra test > requirements_test.txt
+	uv export --format requirements-txt --no-hashes --extra dev > requirements_all.txt
+
 
 # -----------------------------------------------------------------------------
 # Domain Makefile rules
