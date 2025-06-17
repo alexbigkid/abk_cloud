@@ -85,24 +85,34 @@ remove_prod:
 # Running tests Makefile rules
 # -----------------------------------------------------------------------------
 test:
-	uv run python -m unittest discover --start-directory tests
+	uv run pytest
 
 test_v:
-	uv run python -m unittest discover --start-directory tests --verbose
+	uv run pytest -v
 
 test_ff:
-	uv run python -m unittest discover --start-directory tests --failfast
+	uv run pytest -x
 
 test_vff:
-	uv run python -m unittest discover --start-directory tests --verbose --failfast
+	uv run pytest -v -x
 
 %:
 	@:
 
 test_1:
-	uv run python -m unittest "tests.$(filter-out $@,$(MAKECMDGOALS))"
+	uv run pytest -k "$(filter-out $@,$(MAKECMDGOALS))"
 
 coverage:
+	uv run pytest --cov=src --cov-report=term-missing --cov-report=xml
+
+# Legacy unittest commands (for compatibility)
+unittest:
+	uv run python -m unittest discover --start-directory tests
+
+unittest_v:
+	uv run python -m unittest discover --start-directory tests --verbose
+
+unittest_coverage:
 	uv run coverage run --source ./src --omit ./tests/*  -m unittest discover --start-directory tests
 	@echo
 	uv run coverage report
@@ -153,12 +163,15 @@ help:
 	@echo "  install_debug_pip  - installs debug required packages using legacy pip"
 	@echo "  export_requirements - generates requirements.txt files from uv.lock for deployment"
 	@echo "--------------------------------------------------------------------------------"
-	@echo "  test               - runs test"
-	@echo "  test_v             - runs test with verbose messaging"
-	@echo "  test_ff            - runs test fast fail"
-	@echo "  test_vff           - runs test fast fail with verbose messaging"
-	@echo "  test_1 <file.class.test> - runs a single test"
-	@echo "  coverage           - runs test, produces coverage and displays it"
+	@echo "  test               - runs pytest tests"
+	@echo "  test_v             - runs pytest tests with verbose output"
+	@echo "  test_ff            - runs pytest tests with fail fast (stop on first failure)"
+	@echo "  test_vff           - runs pytest tests with verbose output and fail fast"
+	@echo "  test_1 <test_name> - runs specific pytest test(s) by name pattern"
+	@echo "  coverage           - runs pytest with coverage report"
+	@echo "  unittest           - runs legacy unittest tests"
+	@echo "  unittest_v         - runs legacy unittest tests with verbose output"
+	@echo "  unittest_coverage  - runs legacy unittest tests with coverage"
 	@echo "  clean              - cleans some auto generated build files"
 	@echo "--------------------------------------------------------------------------------"
 	@echo "  settings           - outputs current settings"

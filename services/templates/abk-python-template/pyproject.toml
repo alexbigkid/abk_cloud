@@ -1,50 +1,45 @@
 [project]
-name = "{{SERVICE_NAME}}"
+name = "abk-hello"
 version = "0.1.0"
-description = "{{SERVICE_DESCRIPTION}}"
+description = "abk-hello Service"
 requires-python = ">=3.11"
 dependencies = [
     "jsonschema",
 ]
 
-[project.optional-dependencies]
-test = [
+
+[dependency-groups]
+dev = [
     "boto3",
     "coverage",
-    "parameterized",
+    "pytest",
+    "pytest-cov",
+    "ruff",
 ]
-dev = [
+debug = [
     "wheel",
     "pip-check",
     "pip-chill",
-    "pipdeptree",
-    "boto3",
-    "coverage",
-    "parameterized",
+    "pipdeptree"
 ]
+
+
+[project.scripts]
+test = "unittest:main"
+
+
+[tool.uv]
+managed = true
+
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
 
-[tool.uv]
-dev-dependencies = [
-    "boto3",
-    "coverage",
-    "parameterized",
-    "wheel",
-    "pip-check",
-    "pip-chill",
-    "pipdeptree",
-]
-
-
-[tool.coverage.report]
-show_missing = true
-skip_covered = true
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
 
 
 [tool.ruff]

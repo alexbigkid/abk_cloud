@@ -12,7 +12,8 @@ dependencies = [
 dev = [
     "boto3",
     "coverage",
-    "parameterized",
+    "pytest",
+    "pytest-cov",
     "ruff",
 ]
 debug = [
@@ -36,7 +37,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 
-[tool.unittest.ini_options]
+[tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
 
