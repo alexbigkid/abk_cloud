@@ -3,23 +3,24 @@ This project created to easily create new services using [Serverless framework](
 For detailed instructions, please refer to the [documentation](https://www.serverless.com/framework/docs/providers/aws/).
 
 ## Installation/deployment instructions
-To create new service, please execute shell script in the service directory: `./createNewService.sh py name-of-your-new-service`
+To create new service, please execute shell script in the service directory: `./createNewService.sh py <name-of-your-new-service> <env>`
 
-> **Requirements**: Python `(v 3.11.x)`. If you're using [pyenv](https://github.com/pyenv/pyenv), [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv)
-> to install pyenv run: `brew install pyenv` on MacOS or `apt-get install pyenv` on Linux.
-> to install pyenv-virtualenv run: `brew install pyenv-virtualenv` on MacOS or `apt-get install pyenv-virtualenv` on Linux.
-> to install new python version run: `pyenv install 3.11.5`
-> to create python virtual environment run: `pyenv virtualenv 3.11.5 cloud`
-> to set python virtual environment for current directory run: `pyenv local cloud`
-> pyenv will auto-magically set python version and virtual environment to correct version, when you change into that directory
+**Requirements**: Python `(v 3.11.x)`. If you're using [uv](https://github.com/astral-sh/uv), [uv-docs](https://docs.astral.sh/uv/guides/tools/)
+- to install uv run: `brew install uv` on MacOS or `sudo apt install uv` on Linux.
+- `uv sync` - will download all dependencies
+- `source .venv/bin/activate` - activate virtual env
+- `direnv allow` - will allow to load uv initialization from .envrc
+- `uv add <dependency>` - to add dependency
+- `uv remove <dependency>` - to remove dependency
 
 
 ### Using make rules
-| dependency installations | description                                                               |
-| :----------------------- | :------------------------------------------------------------------------ |
-| `make install`           | install project dependencies                                              |
-| `make install_test`      | install project dependencies and dependencies required for unit tests     |
-| `make install_all`       | install project dependencies, unit tests and all development dependencies |
+| dependency installations   | description                                                           |
+| :------------------------- | :-------------------------------------------------------------------- |
+| `make install`             | install project dependencies                                          |
+| `make install_dev`         | install project dependencies and dependencies required for unit tests |
+| `make install_debug`       | install project dependencies, unit tests and debug dependencies       |
+| `make export_requirements` | export uv dependencies to requirements files                          |
 
 | domain commands      | description                                                           |
 | :------------------- | :-------------------------------------------------------------------- |
@@ -58,26 +59,28 @@ To create new service, please execute shell script in the service directory: `./
 
 
 ### Remotely
-Copy and replace your `url` - found in Serverless `deploy` command output - and `name` parameter in the following `curl` command in your terminal, Postman or vscode extention: `Thunder Client` to test your newly deployed application. Don't forget to use authentication token.
+Copy and replace your `url` - found in Serverless `deploy` command output - and `name` parameter in the following `curl` command in your terminal, Postman or vscode extension: `Postman` to test your newly deployed application. Don't forget to use authentication token.
 
 ### Project structure
 
 ```
 .
+├── src                                 # directory with production code sources
+│   └── abk_hello
+│       ├── __init__.py                 # module init
+│       ├── abk_hello_io.py             # example lambda IO (Lambda Request and Response definitions)
+│       └── abk_hello.py                # example lambda code
+├── tests                               # unit tests directory
+│   └── test_abk_hello.py               # unit tests for example lambda
 ├── Makefile                             # Makefile, which creates project rules
-├── README.md                           # This file
 ├── package-lock.json
 ├── package.json                        # some serverless plugin dependencies
 ├── publish.sh                          # shell script to deploy service
+├── pyproject.toml                      # uv python project file
+├── README.md                           # This file
+├── requirements_debug.txt              # all python dependencies for debug
+├── requirements_dev.txt                # project dependencies for unit tests
 ├── requirements.txt                    # project python dependencies
-├── requirements_all.txt                # all python dependencies for development
-├── requirements_test.txt               # project dependencies and dependencies for unit tests
 ├── serverless.yml                      # serverless config
-├── src                                 # directory with production code sources
-│   ├── abk_hello.py         # example lambda IO (Lambda Request and Response definitions)
-│   └── abk_hello_io.py          # example lambda code
-└── tests                               # unit tests directory
-    ├── context.py                      # helper python file to link to production code
-    └── test_abk_hello.py    # unit tests for example lambda
-
+└── uv.lock                             #
 ```
