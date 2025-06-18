@@ -1,4 +1,4 @@
-service: abk-hello
+service: abk-python-template
 frameworkVersion: "3"
 configValidationMode: error
 
@@ -13,7 +13,6 @@ package:
   individually: true
   patterns:
   - "!**"
-  - "/node_modules/**"
 
 provider:
   name: aws
@@ -54,13 +53,13 @@ provider:
   #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_subnet_id2}
   #   - ${file(../../config.${self:provider.stage}.yml):services.abk_vpc_subnet_id3}
   environment:
+    PYTHONPATH: src
     # ABK_DB_USR: ${file(../../config.${self:provider.stage}.yml):services.abk_db_usr}
     # ABK_DB_PSW: ${file(../../config.${self:provider.stage}.yml):services.abk_db_psw}
     # ABK_DB_HOST: ${file(../../config.${self:provider.stage}.yml):services.abk_db_host}
     # ABK_DB_PORT: ${file(../../config.${self:provider.stage}.yml):services.abk_db_port}
     # ABK_DB_NAME: ${file(../../config.${self:provider.stage}.yml):services.abk_db_name}
     # LOG_LEVEL: ${file(../../config.${self:provider.stage}.yml):services.abk_log_level}
-    PYTHONPATH: src
 
 custom:
   version: 1.0
@@ -80,12 +79,12 @@ custom:
 
 functions:
   abk-hello:
-    handler: src/abk_hello.handler
+    handler: src/abk_hello/abk_hello.handler
     name: ${self:service}-${self:provider.stage}-abkHello
     description: "ABK hello Lambda function"
     package:
       patterns:
-      - src/abk_hello*.py
+      - src/abk_hello/*.py
     events:
     - http:
         path: abk-hello

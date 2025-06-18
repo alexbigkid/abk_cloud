@@ -1,5 +1,5 @@
 .PHONY:	sync install install_all install_pip install_test_pip install_all_pip export_requirements test test_v test_ff test_vff deploy settings help
-.SILENT: clean deploy_dev deploy_qa deploy_prod remove_dev remove_qa remove_prod
+.SILENT: clean deploy_dev deploy_qa deploy_prod remove_dev remove_qa remove_prod export_requirements
 
 
 # -----------------------------------------------------------------------------
@@ -9,18 +9,22 @@ sync:
 	uv sync
 
 install:
-	uv pip install --requirement requirements.txt
+	uv sync --no-dev
 
 install_dev:
-	uv pip install --requirement requirements_dev.txt
+	uv sync --group dev
 
 install_debug:
-	uv pip install --requirement requirements_debug.txt
+	uv sync --group debug
 
 export_requirements:
-	uv export --format requirements-txt --no-hashes > requirements.txt
-	uv export --format requirements-txt --no-hashes --extra dev > requirements_dev.txt
-	uv export --format requirements-txt --no-hashes --extra debug > requirements_debug.txt
+	uv export --format requirements-txt --no-hashes --no-dev --no-editable > requirements.txt.tmp
+	uv export --format requirements-txt --no-hashes --group dev --no-editable > requirements_dev.txt.tmp
+	uv export --format requirements-txt --no-hashes --group debug --no-editable > requirements_debug.txt.tmp
+	grep -v '^-e \.$$' requirements.txt.tmp | grep -v '^\.$$' > requirements.txt
+	grep -v '^-e \.$$' requirements_dev.txt.tmp | grep -v '^\.$$' > requirements_dev.txt
+	grep -v '^-e \.$$' requirements_debug.txt.tmp | grep -v '^\.$$' > requirements_debug.txt
+	rm -f requirements*.tmp requirements*.clean
 
 
 # -----------------------------------------------------------------------------

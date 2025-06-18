@@ -126,7 +126,14 @@ def handler(event, context):
     resp_body: AhLambdaResponseBody
 
     try:
-        lambda_input = json.loads(event.get("body"))
+        # Handle both GET (query parameters) and POST (body) requests
+        if event.get("httpMethod") == "GET" and event.get("queryStringParameters"):
+            lambda_input = event.get("queryStringParameters")
+        elif event.get("body"):
+            lambda_input = json.loads(event.get("body"))
+        else:
+            lambda_input = {}
+
         lambda_req = validate_input(lambda_input)
         abk_logger.debug(f"req: {json.dumps(lambda_req._asdict(), indent=4)}")
 
@@ -135,7 +142,17 @@ def handler(event, context):
         status_code = HttpStatusCode.OK.value
     except Exception as exc:
         abk_logger.error(f"{exc = }")
-        resp_body = get_error_response_body(json.loads(event.get("body")))
+        # Try to get txId from either query params or body for error response
+        try:
+            if event.get("httpMethod") == "GET" and event.get("queryStringParameters"):
+                error_input = event.get("queryStringParameters") or {}
+            elif event.get("body"):
+                error_input = json.loads(event.get("body"))
+            else:
+                error_input = {}
+        except:
+            error_input = {}
+        resp_body = get_error_response_body(error_input)
 
     body = json.dumps(class_to_dict(resp_body))
     abk_logger.info(f"{status_code = }, {body = }")
