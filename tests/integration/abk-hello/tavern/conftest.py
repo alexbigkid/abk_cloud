@@ -25,35 +25,12 @@ def tavern_global_cfg():
     env = os.environ.get("ABK_DEPLOYMENT_ENV", "dev")
     region = os.environ.get("ABK_DEPLOYMENT_REGION", "us-west-2")
     
-    # Get or discover API URL
+    # Get API URL from environment variable
     api_url = os.environ.get("ABK_HELLO_API_URL")
     
     if not api_url:
-        # Try to discover API Gateway URL
-        try:
-            service_name = f"{env}-abk-hello"
-            result = subprocess.run(
-                [
-                    "aws", "apigateway", "get-rest-apis", 
-                    "--region", region,
-                    "--query", f"items[?name=='{service_name}'].{{id:id,name:name}}",
-                    "--output", "json"
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if result.returncode == 0:
-                apis = json.loads(result.stdout)
-                if apis:
-                    api_id = apis[0]["id"]
-                    api_url = f"https://{api_id}.execute-api.{region}.amazonaws.com/{env}"
-                    print(f"Discovered API URL for Tavern tests: {api_url}")
-        except (subprocess.SubprocessError, json.JSONDecodeError, FileNotFoundError):
-            # Fall back to placeholder
-            api_url = f"https://your-api-id.execute-api.{region}.amazonaws.com/{env}"
-            print(f"Warning: Using placeholder API URL: {api_url}")
+        # Fall back to placeholder if not set
+        api_url = f"https://your-api-id.execute-api.{region}.amazonaws.com/{env}"
     
     # Generate test data
     valid_device_uuid = str(uuid.uuid4())

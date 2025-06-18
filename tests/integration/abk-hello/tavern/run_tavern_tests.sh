@@ -77,13 +77,14 @@ discover_api_url() {
         local api_id
         if api_id=$(echo "$api_info" | jq -r '.[0].id // empty' 2>/dev/null) && [ -n "$api_id" ] && [ "$api_id" != "null" ]; then
             local api_url="https://${api_id}.execute-api.${region}.amazonaws.com/${env}"
-            PrintTrace "$TRACE_INFO" "Discovered API URL: $api_url"
+            # Print to stderr to avoid mixing with return value
+            PrintTrace "$TRACE_INFO" "Discovered API URL: $api_url" >&2
             echo "$api_url"
             return 0
         fi
     fi
     
-    PrintTrace "$TRACE_WARNING" "Could not discover API Gateway URL automatically"
+    PrintTrace "$TRACE_WARNING" "Could not discover API Gateway URL automatically" >&2
     return 1
 }
 
@@ -204,11 +205,12 @@ run_tavern_tests() {
     export ABK_DEPLOYMENT_REGION="$TEST_REGION"
     
     # Build pytest command for Tavern using UV
+    # Run the Python test runner that loads YAML files
     local pytest_cmd=(
         "uv" "run" "pytest"
-        "$TAVERN_DIR/$test_pattern"
+        "$TAVERN_DIR/test_tavern_runner.py"
         "--tb=short"
-        "-m" "tavern"
+        "-v"
     )
     
     # Add verbose output if requested
@@ -325,9 +327,9 @@ main() {
     validate_tavern_files || exit 1
     
     # Get API URL (from environment variable or discover it)
-    local api_url="$ABK_HELLO_API_URL"
+    local api_url="${ABK_HELLO_API_URL:-}"
     if [ -z "$api_url" ]; then
-        if ! api_url=$(discover_api_url "$TEST_ENV" "$TEST_REGION"); then
+        if ! api_url=$(discover_api_url "$TEST_ENV" "$TEST_REGION" 2>/dev/null); then
             PrintTrace "$TRACE_ERROR" "Could not determine API Gateway URL"
             PrintTrace "$TRACE_ERROR" "Please set ABK_HELLO_API_URL environment variable"
             PrintTrace "$TRACE_ERROR" "Example: export ABK_HELLO_API_URL=https://your-api-id.execute-api.us-west-2.amazonaws.com/dev"
