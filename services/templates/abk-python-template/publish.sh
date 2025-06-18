@@ -89,7 +89,7 @@ PrepareRequirementsFiles || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to
 InstallRequiredServerlessPlugins || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to install Serverless plugin${NC}"
 
 PrintTrace "$TRACE_INFO" "Publishing service: ${YLW}$SERVICE_NAME${NC}"
-serverless deploy --aws-profile "$ABK_DEPLOYMENT_ENV" --stage "$ABK_DEPLOYMENT_ENV" --region "$ABK_DEPLOYMENT_REGION" || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to deploy service: $SERVICE_NAME${NC}"
+serverless deploy --stage "$ABK_DEPLOYMENT_ENV" --region "$ABK_DEPLOYMENT_REGION" || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to deploy service: $SERVICE_NAME${NC}"
 PrintTrace "$TRACE_FUNCTION" "<- $0 ($EXIT_CODE)"
 echo
 exit $EXIT_CODE

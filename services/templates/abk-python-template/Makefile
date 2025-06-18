@@ -31,10 +31,10 @@ export_requirements:
 # Domain Makefile rules
 # -----------------------------------------------------------------------------
 create_domain:
-	serverless create_domain --aws-profile ${ABK_DEPLOYMENT_ENV} --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
+	serverless create_domain --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
 
 delete_domain:
-	serverless delete_domain --aws-profile ${ABK_DEPLOYMENT_ENV} --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
+	serverless delete_domain --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
 
 
 # -----------------------------------------------------------------------------
@@ -44,16 +44,16 @@ deploy:
 	./publish.sh ${ABK_DEPLOYMENT_ENV} ${ABK_DEPLOYMENT_REGION}
 
 deploy_env:
-	serverless deploy --aws-profile ${ABK_DEPLOYMENT_ENV} --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
+	serverless deploy --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
 
 deploy_dev:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_DEV} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_DEV} && serverless deploy --aws-profile dev --stage dev --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_DEV} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_DEV} && serverless deploy --stage dev --region ${ABK_DEPLOYMENT_REGION}
 
 deploy_qa:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_QA} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_QA} && serverless deploy --aws-profile qa --stage qa --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_QA} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_QA} && serverless deploy --stage qa --region ${ABK_DEPLOYMENT_REGION}
 
 deploy_prod:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_PROD} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_PROD} && serverless deploy --aws-profile prod --stage prod --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_PROD} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_PROD} && serverless deploy --stage prod --region ${ABK_DEPLOYMENT_REGION}
 
 
 # -----------------------------------------------------------------------------
@@ -63,16 +63,16 @@ remove:
 	serverless remove --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
 
 remove_env:
-	serverless remove --aws-profile ${ABK_DEPLOYMENT_ENV} --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
+	serverless remove --stage ${ABK_DEPLOYMENT_ENV} --region ${ABK_DEPLOYMENT_REGION}
 
 remove_dev:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_DEV} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_DEV} && serverless remove --aws-profile dev --stage dev --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_DEV} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_DEV} && serverless remove --stage dev --region ${ABK_DEPLOYMENT_REGION}
 
 remove_qa:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_QA} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_QA} && serverless remove --aws-profile qa --stage qa --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_QA} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_QA} && serverless remove --stage qa --region ${ABK_DEPLOYMENT_REGION}
 
 remove_prod:
-	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_PROD} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_PROD} && serverless remove --aws-profile prod --stage prod --region ${ABK_DEPLOYMENT_REGION}
+	export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_PROD} && export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_PROD} && serverless remove --stage prod --region ${ABK_DEPLOYMENT_REGION}
 
 
 # -----------------------------------------------------------------------------
