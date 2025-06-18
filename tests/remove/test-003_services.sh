@@ -457,10 +457,22 @@ main() {
         exit 1
     fi
     
+    # Handle missing config file (expected after removal)
     if [ ! -f "$CONFIG_FILE" ]; then
-        echo "❌ ERROR: Environment config not found: $CONFIG_FILE"
-        echo "   Run: ./deploy-001_setup-env.sh $TEST_ENV $TEST_REGION"
-        exit 1
+        echo "ℹ️  Config file missing, creating temporary config for removal validation..."
+        
+        # Create backup if exists
+        if [ -f "$CONFIG_FILE.backup.test" ]; then
+            echo "✅ Found backup config for removal testing: $CONFIG_FILE.backup.test"
+            cp "$CONFIG_FILE.backup.test" "$CONFIG_FILE"
+        else
+            # Create minimal config for testing
+            cat > "$CONFIG_FILE" << EOF
+services:
+  abk_deployment_bucket: abk-ci-deployment-$TEST_ENV-$TEST_REGION
+EOF
+            echo "✅ Created temporary config for removal testing: $CONFIG_FILE"
+        fi
     fi
     
     echo "Running integration tests..."
@@ -472,6 +484,12 @@ main() {
     test_api_gateway_endpoints_removed
     test_cloudformation_stacks_removed
     test_no_orphaned_resources
+    
+    # Cleanup temporary config if we created it
+    if [ -f "$CONFIG_FILE" ] && [ ! -f "$CONFIG_FILE.backup.test" ]; then
+        rm -f "$CONFIG_FILE"
+        echo "🧹 Cleaned up temporary config file"
+    fi
     
     print_test_summary
 }
