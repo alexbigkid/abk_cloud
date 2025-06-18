@@ -131,7 +131,10 @@ DeployParallelServices() {
         # Export function and variables for parallel
         export -f DeployService PrintTrace
         export TRACE_FUNCTION TRACE_INFO TRACE_ERROR TRACE_WARNING YLW NC GRN RED
+        export TRACE_LEVEL TRACE_NONE TRACE_CRITICAL TRACE_ERROR TRACE_WARNING TRACE_FUNCTION TRACE_INFO TRACE_DEBUG TRACE_ALL
         export ABK_DEPLOYMENT_ENV ABK_DEPLOYMENT_REGION
+        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
+        export PATH NODE_PATH
 
         if ! echo "$LCL_SERVICES" | parallel --halt now,fail=1 DeployService; then
             LCL_EXIT_CODE="$EXIT_CODE_DEPLOYMENT_FAILED"
