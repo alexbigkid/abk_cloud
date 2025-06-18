@@ -133,7 +133,7 @@ def test_convert_and_validate_input__throws_given_additional_input_key_is_presen
         ("deviceUuid", 3.14, "3.14 is not of type 'string"),
         ("deviceUuid", {}, "{} is not of type 'string'"),
         ("deviceUuid", [], "[] is not of type 'string'"),
-        ("txId", "", "'' should be non-empty"),
+        ("txId", "", "'' is too short"),
         ("txId", "X" * 37, f"'{'X' * 37}' is too long"),
         ("txId", True, "True is not of type 'string'"),
         ("txId", 89, "89 is not of type 'string'"),

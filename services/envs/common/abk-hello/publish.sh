@@ -6,7 +6,9 @@
 
 EXIT_CODE=0
 EXPECTED_NUMBER_OF_PARAMS=2
-COMMON_LIB_FILE="../../common-lib.sh"
+# Get project root directory (two levels up from tests/deploy/)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+COMMON_LIB_FILE="$PROJECT_ROOT/common-lib.sh"
 SERVICE_NAME=$(basename "$PWD")
 
 
@@ -31,29 +33,36 @@ PrintUsageAndExitWithCode() {
 
 
 RunUnitTests() {
-    PrintTrace $TRACE_FUNCTION "-> ${FUNCNAME[0]} ()"
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ()"
 
-    PrintTrace $TRACE_INFO "Installing unit test dependencies ..."
-    make install_test || return $?
-    PrintTrace $TRACE_INFO "Running unit tests ..."
+    PrintTrace "$TRACE_INFO" "Installing unit test dependencies ..."
+    make sync || return $?
+    PrintTrace "$TRACE_INFO" "Running unit tests ..."
     make test_ff || return $?
-    PrintTrace $TRACE_INFO "Running unit tests with coverage ..."
+    PrintTrace "$TRACE_INFO" "Running unit tests with coverage ..."
     make coverage || return $?
 
-    PrintTrace $TRACE_FUNCTION "<- ${FUNCNAME[0]} (0)"
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
     return 0
 }
 
+
+PrepareRequirementsFiles() {
+    PrintTrace "$TRACE_FUNCTION" "-> ${FUNCNAME[0]} ()"
+    make export_requirements || return $?
+    PrintTrace "$TRACE_FUNCTION" "<- ${FUNCNAME[0]} (0)"
+    return 0
+}
 
 
 #------------------------------------------------------------------------------
 # main
 #------------------------------------------------------------------------------
 # include common library, fail if does not exist
-if [ -f $COMMON_LIB_FILE ]; then
+if [ -f "$COMMON_LIB_FILE" ]; then
 # shellcheck disable=SC1091
 # shellcheck source=../common-lib.sh
-    source $COMMON_LIB_FILE
+    source "$COMMON_LIB_FILE"
 else
     echo "ERROR: cannot find $COMMON_LIB_FILE"
     echo "  $COMMON_LIB_FILE contains common definitions and functions"
@@ -61,25 +70,26 @@ else
 fi
 
 echo
-PrintTrace $TRACE_FUNCTION "-> $0 ($*)"
+PrintTrace "$TRACE_FUNCTION" "-> $0 ($*)"
 
-IsParameterHelp $# "$1" && PrintUsageAndExitWithCode $EXIT_CODE_SUCCESS "---- Help displayed ----"
+IsParameterHelp $# "$1" && PrintUsageAndExitWithCode "$EXIT_CODE_SUCCESS" "---- Help displayed ----"
 # shellcheck disable=SC2068
-CheckNumberOfParameters $EXPECTED_NUMBER_OF_PARAMS $@ || PrintUsageAndExitWithCode $EXIT_CODE_INVALID_NUMBER_OF_PARAMETERS "${RED}ERROR: Invalid number of parameters${NC}"
-IsPredefinedParameterValid "$1" "${ENV_ARRAY[@]}" || PrintUsageAndExitWithCode $EXIT_CODE_NOT_VALID_PARAMETER "${RED}ERROR: Invalid parameter${NC}"
-IsPredefinedParameterValid "$2" "${REGION_ARRAY[@]}" || PrintUsageAndExitWithCode $EXIT_CODE_NOT_VALID_PARAMETER "${RED}ERROR: Invalid REGION parameter${NC}"
-[ "$AWS_ACCESS_KEY_ID" == "" ] && PrintUsageAndExitWithCode $EXIT_CODE_GENERAL_ERROR "${RED}ERROR: AWS_ACCESS_KEY_ID is not set${NC}"
-[ "$AWS_SECRET_ACCESS_KEY" == "" ] && PrintUsageAndExitWithCode $EXIT_CODE_GENERAL_ERROR "${RED}ERROR: AWS_SECRET_ACCESS_KEY is not set${NC}"
-[ "$ABK_DEPLOYMENT_ENV" != "$1" ] && PrintUsageAndExitWithCode $EXIT_CODE_GENERAL_ERROR "${RED}ERROR: $ABK_DEPLOYMENT_ENV != $1\nPlease set ${GRN}ABK_DEPLOYMENT_ENV${RED} in .envrc to ${GRN}$1${RED} to generate correct values in config.$1.yml${NC}"
+CheckNumberOfParameters $EXPECTED_NUMBER_OF_PARAMS $@ || PrintUsageAndExitWithCode "$EXIT_CODE_INVALID_NUMBER_OF_PARAMETERS" "${RED}ERROR: Invalid number of parameters${NC}"
+IsPredefinedParameterValid "$1" "${ENV_ARRAY[@]}" || PrintUsageAndExitWithCode "$EXIT_CODE_NOT_VALID_PARAMETER" "${RED}ERROR: Invalid parameter${NC}"
+IsPredefinedParameterValid "$2" "${REGION_ARRAY[@]}" || PrintUsageAndExitWithCode "$EXIT_CODE_NOT_VALID_PARAMETER" "${RED}ERROR: Invalid REGION parameter${NC}"
+[ "$AWS_ACCESS_KEY_ID" == "" ] && PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: AWS_ACCESS_KEY_ID is not set${NC}"
+[ "$AWS_SECRET_ACCESS_KEY" == "" ] && PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: AWS_SECRET_ACCESS_KEY is not set${NC}"
+[ "$ABK_DEPLOYMENT_ENV" != "$1" ] && PrintUsageAndExitWithCode "$EXIT_CODE_GENERAL_ERROR" "${RED}ERROR: $ABK_DEPLOYMENT_ENV != $1\nPlease set ${GRN}ABK_DEPLOYMENT_ENV${RED} in .envrc to ${GRN}$1${RED} to generate correct values in config.$1.yml${NC}"
 
 ABK_DEPLOYMENT_ENV=$1
 ABK_DEPLOYMENT_REGION=$2
 
 RunUnitTests || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed unit tests${NC}"
+PrepareRequirementsFiles || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to prepare requirements files${NC}"
 InstallRequiredServerlessPlugins || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to install Serverless plugin${NC}"
 
-PrintTrace $TRACE_INFO "Publishing service: ${YLW}$SERVICE_NAME${NC}"
+PrintTrace "$TRACE_INFO" "Publishing service: ${YLW}$SERVICE_NAME${NC}"
 serverless deploy --aws-profile "$ABK_DEPLOYMENT_ENV" --stage "$ABK_DEPLOYMENT_ENV" --region "$ABK_DEPLOYMENT_REGION" || PrintUsageAndExitWithCode $? "${RED}ERROR: Failed to deploy service: $SERVICE_NAME${NC}"
-PrintTrace $TRACE_FUNCTION "<- $0 ($EXIT_CODE)"
+PrintTrace "$TRACE_FUNCTION" "<- $0 ($EXIT_CODE)"
 echo
 exit $EXIT_CODE
