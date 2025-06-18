@@ -135,16 +135,56 @@ mkdir -p "envs/$SERVICE_ENV"
 PrintTrace "$TRACE_INFO" "Creating service '$SERVICE_NAME' of type '$SERVICE_TYPE' in environment '$SERVICE_ENV'"
 
 [ "$SERVICE_TYPE" = "py" ] && TEMPLATE_NAME=$TEMPLATE_NAME_FOR_PYTHON || TEMPLATE_NAME=$TEMPLATE_NAME_FOR_TYPESCRIPT
-serverless create --template-path "$TEMPLATE_NAME" --name "$SERVICE_NAME" --path "$SERVICE_PATH"
+
+# Strip leading digits and underscores from service name for serverless naming
+CLEAN_SERVICE_NAME=$(echo "$SERVICE_NAME" | sed 's/^[0-9_]*//g')
+
+serverless create --template-path "$TEMPLATE_NAME" --name "$CLEAN_SERVICE_NAME" --path "$SERVICE_PATH"
 
 # Replace placeholders in Python service files
 if [ "$SERVICE_TYPE" = "py" ]; then
     PrintTrace "$TRACE_INFO" "Updating service configuration for $SERVICE_NAME"
 
-    # Update pyproject.toml
+    # CLEAN_SERVICE_NAME already calculated above
+    
+    # Convert service name to valid Python package name
+    PYTHON_PACKAGE_NAME=$(echo "$CLEAN_SERVICE_NAME" | sed 's/-/_/g' | tr '[:upper:]' '[:lower:]')
+    
+    # If package name is empty after removing digits, use a default
+    [ -z "$PYTHON_PACKAGE_NAME" ] && PYTHON_PACKAGE_NAME="service"
+    
+    PrintTrace "$TRACE_INFO" "Clean service name: $CLEAN_SERVICE_NAME"
+    PrintTrace "$TRACE_INFO" "Python package name: $PYTHON_PACKAGE_NAME"
+
+    # Rename src/abk_hello directory to the new package name
+    if [ -d "$SERVICE_PATH/src/abk_hello" ]; then
+        mv "$SERVICE_PATH/src/abk_hello" "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME"
+    fi
+
+    # Rename Python files within the package
+    if [ -f "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/abk_hello.py" ]; then
+        mv "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/abk_hello.py" "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/$PYTHON_PACKAGE_NAME.py"
+    fi
+    if [ -f "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/abk_hello_io.py" ]; then
+        mv "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/abk_hello_io.py" "$SERVICE_PATH/src/$PYTHON_PACKAGE_NAME/${PYTHON_PACKAGE_NAME}_io.py"
+    fi
+
+    # Update imports and references in Python files
+    find "$SERVICE_PATH" -name "*.py" -type f -exec sed -i.bak "s/abk_hello/$PYTHON_PACKAGE_NAME/g" {} \;
+    find "$SERVICE_PATH" -name "*.py.bak" -type f -delete
+
+    # Update serverless.yml with clean service name (no 001_ prefix) and new package structure
+    if [ -f "$SERVICE_PATH/serverless.yml" ]; then
+        sed -i.bak "s/service: abk-python-template/service: $CLEAN_SERVICE_NAME/g" "$SERVICE_PATH/serverless.yml"
+        sed -i.bak "s/src\/abk_hello\/abk_hello\.handler/src\/$PYTHON_PACKAGE_NAME\/$PYTHON_PACKAGE_NAME.handler/g" "$SERVICE_PATH/serverless.yml"
+        sed -i.bak "s/src\/abk_hello\/\*\.py/src\/$PYTHON_PACKAGE_NAME\/*.py/g" "$SERVICE_PATH/serverless.yml"
+        rm "$SERVICE_PATH/serverless.yml.bak"
+    fi
+
+    # Update pyproject.toml with clean service name (no 001_ prefix)
     if [ -f "$SERVICE_PATH/pyproject.toml" ]; then
-        sed -i.bak "s/{{SERVICE_NAME}}/$SERVICE_NAME/g" "$SERVICE_PATH/pyproject.toml"
-        sed -i.bak "s/{{SERVICE_DESCRIPTION}}/$SERVICE_NAME Service/g" "$SERVICE_PATH/pyproject.toml"
+        sed -i.bak "s/{{SERVICE_NAME}}/$CLEAN_SERVICE_NAME/g" "$SERVICE_PATH/pyproject.toml"
+        sed -i.bak "s/{{SERVICE_DESCRIPTION}}/$CLEAN_SERVICE_NAME Service/g" "$SERVICE_PATH/pyproject.toml"
         rm "$SERVICE_PATH/pyproject.toml.bak"
     fi
 fi
