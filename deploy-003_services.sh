@@ -118,8 +118,8 @@ DeployParallelServices() {
     PrintTrace "$TRACE_INFO" "Parallel services found:"
     PrintTrace "$TRACE_INFO" "$LCL_SERVICES"
 
-    # Check if parallel tool is available
-    if ! command -v parallel > /dev/null 2>&1; then
+    # Temporarily force sequential execution for debugging
+    if true; then
         PrintTrace "$TRACE_WARNING" "parallel tool not found, deploying services sequentially instead"
         while IFS= read -r SERVICE; do
             [ -z "$SERVICE" ] && continue
