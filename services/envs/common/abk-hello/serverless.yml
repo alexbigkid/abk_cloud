@@ -89,7 +89,15 @@ functions:
     - http:
         path: abk-hello
         method: GET
-        # cors: true
+        cors: true
+        # authorizer:
+        #   type: COGNITO_USER_POOLS
+        #   authorizerId:
+        #     Ref: ApiGatewayAuthorizer
+    - http:
+        path: abk-hello
+        method: POST
+        cors: true
         # authorizer:
         #   type: COGNITO_USER_POOLS
         #   authorizerId:
