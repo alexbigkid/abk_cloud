@@ -89,7 +89,7 @@ InstallRequiredToolsUsingNpm() {
                     serverless
                 )
     local LCL_PACKAGE=(
-                    serverless
+                    "serverless@^3"
                   )
     echo
     PrintTrace "$TRACE_FUNCTION" "----------------------------------------------------------------------"
