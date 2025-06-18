@@ -2,8 +2,8 @@
   "summary": {
     "environment": "dev",
     "region": "us-west-2",
-    "timestamp": "2025-06-18T12:43:31Z",
-    "overall_result": "FAIL",
+    "timestamp": "2025-06-18T23:49:02Z",
+    "overall_result": "PASS",
     "services": [
       {
         "service": "pytest",
@@ -17,20 +17,20 @@
 ,
       {
         "service": "tavern",
-        "passed": 0,
+        "passed": 1,
         "failed": 0,
         "skipped": 0,
-        "total": 0,
+        "total": 1,
         "result": "PASS",
         "report_file": "tests/integration/abk-hello/tavern/tavern_test_report.json"
       }
     ],
     "totals": {
       "services_tested": 2,
-      "total_passed": 13,
+      "total_passed": 14,
       "total_failed": 0,
       "total_skipped": 0,
-      "total_tests": 13
+      "total_tests": 14
     }
   }
 }

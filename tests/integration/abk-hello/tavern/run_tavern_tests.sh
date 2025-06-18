@@ -65,8 +65,6 @@ discover_api_url() {
     local region="$2"
     local service_name="${env}-abk-hello"
     
-    PrintTrace "$TRACE_INFO" "Discovering API Gateway URL for service: $service_name"
-    
     # Try to get API Gateway info using AWS CLI
     local api_info
     if api_info=$(aws apigateway get-rest-apis \
@@ -77,14 +75,11 @@ discover_api_url() {
         local api_id
         if api_id=$(echo "$api_info" | jq -r '.[0].id // empty' 2>/dev/null) && [ -n "$api_id" ] && [ "$api_id" != "null" ]; then
             local api_url="https://${api_id}.execute-api.${region}.amazonaws.com/${env}"
-            # Print to stderr to avoid mixing with return value
-            PrintTrace "$TRACE_INFO" "Discovered API URL: $api_url" >&2
             echo "$api_url"
             return 0
         fi
     fi
     
-    PrintTrace "$TRACE_WARNING" "Could not discover API Gateway URL automatically" >&2
     return 1
 }
 
@@ -329,7 +324,10 @@ main() {
     # Get API URL (from environment variable or discover it)
     local api_url="${ABK_HELLO_API_URL:-}"
     if [ -z "$api_url" ]; then
-        if ! api_url=$(discover_api_url "$TEST_ENV" "$TEST_REGION" 2>/dev/null); then
+        PrintTrace "$TRACE_INFO" "Auto-discovering API Gateway URL..."
+        if api_url=$(discover_api_url "$TEST_ENV" "$TEST_REGION" 2>/dev/null) && [ -n "$api_url" ]; then
+            PrintTrace "$TRACE_INFO" "Discovered API URL: $api_url"
+        else
             PrintTrace "$TRACE_ERROR" "Could not determine API Gateway URL"
             PrintTrace "$TRACE_ERROR" "Please set ABK_HELLO_API_URL environment variable"
             PrintTrace "$TRACE_ERROR" "Example: export ABK_HELLO_API_URL=https://your-api-id.execute-api.us-west-2.amazonaws.com/dev"
