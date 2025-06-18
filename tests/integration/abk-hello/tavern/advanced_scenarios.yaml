@@ -1,0 +1,256 @@
+---
+test_name: ABK Hello API - Complex Validation Scenarios
+
+includes:
+  - !include common.yaml
+
+stages:
+  - name: Test with boundary values for txId length
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{test_uuid_1}"
+        txId: "123456789012345678901234567890123456"  # exactly 36 chars
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "123456789012345678901234567890123456"
+
+  - name: Test with minimum txId length
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{test_uuid_2}"
+        txId: "1"  # minimum length 1
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "1"
+
+---
+test_name: ABK Hello API - UUID Format Validation
+
+stages:
+  - name: Test with uppercase UUID
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "550E8400-E29B-41D4-A716-446655440000"
+        txId: "uppercase-uuid-test"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "uppercase-uuid-test"
+
+  - name: Test with lowercase UUID
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "550e8400-e29b-41d4-a716-446655440000"
+        txId: "lowercase-uuid-test"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "lowercase-uuid-test"
+
+  - name: Test with mixed case UUID
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "550E8400-e29b-41D4-a716-446655440000"
+        txId: "mixed-case-uuid-test"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "mixed-case-uuid-test"
+
+---
+test_name: ABK Hello API - HTTP Methods and Content Types
+
+stages:
+  - name: Test POST with different content type
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: "application/json; charset=utf-8"
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "content-type-test"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "content-type-test"
+
+  - name: Test unsupported HTTP method (PUT)
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: PUT
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "put-method-test"
+    response:
+      status_code: 403  # API Gateway typically returns 403 for unsupported methods
+
+  - name: Test unsupported HTTP method (DELETE)
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: DELETE
+    response:
+      status_code: 403
+
+---
+test_name: ABK Hello API - Error Response Consistency
+
+stages:
+  - name: Test error response for invalid UUID has consistent format
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "invalid-format"
+        txId: "error-consistency-test"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+        access-control-allow-origin: "*"
+      json:
+        msg: "error"
+        # txId might be present or empty in error cases
+
+  - name: Test error response for missing parameters has consistent format
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: application/json
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        # Missing txId
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+        access-control-allow-origin: "*"
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Load and Stress Testing Simulation
+
+stages:
+  - name: Rapid succession request 1
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{test_uuid_1}"
+        txId: "rapid-1"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "rapid-1"
+
+  - name: Rapid succession request 2
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{test_uuid_2}"
+        txId: "rapid-2"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "rapid-2"
+
+  - name: Rapid succession request 3
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{test_uuid_3}"
+        txId: "rapid-3"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "rapid-3"
+
+---
+test_name: ABK Hello API - Special Characters and Encoding
+
+stages:
+  - name: Test with special characters in txId
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "test-with-dashes_and_underscores"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "test-with-dashes_and_underscores"
+
+  - name: Test with numeric txId
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "1234567890"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "1234567890"
+
+---
+test_name: ABK Hello API - Request Body vs Query Parameter Consistency
+
+stages:
+  - name: Compare GET response
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "consistency-test"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "consistency-test"
+      save:
+        json:
+          get_response: msg
+
+  - name: Compare POST response with same data
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: application/json
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "consistency-test"
+    response:
+      status_code: 200
+      json:
+        msg: "{get_response}"  # Should match the GET response
+        txId: "consistency-test"

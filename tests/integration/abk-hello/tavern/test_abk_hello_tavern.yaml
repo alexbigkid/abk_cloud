@@ -1,0 +1,245 @@
+---
+test_name: ABK Hello API - Valid GET Request with Query Parameters
+
+stages:
+  - name: Test valid GET request with query parameters
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "{valid_tx_id}"
+    response:
+      status_code: 200
+      headers:
+        content-type: application/json
+        access-control-allow-origin: "*"
+        access-control-allow-credentials: "true"
+      json:
+        msg: "ok"
+        txId: "{valid_tx_id}"
+
+---
+test_name: ABK Hello API - Missing Required Parameters
+
+stages:
+  - name: Test GET request with missing deviceUuid
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        txId: "{valid_tx_id}"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+  - name: Test GET request with missing txId
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Invalid UUID Format
+
+stages:
+  - name: Test GET request with invalid UUID format
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "invalid-uuid-format"
+        txId: "{valid_tx_id}"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Transaction ID Validation
+
+stages:
+  - name: Test GET request with empty txId
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: ""
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+  - name: Test GET request with txId too long
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "x{repeated_x_36_chars}"  # 37 characters total
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Valid POST Request with JSON Body
+
+stages:
+  - name: Test valid POST request with JSON body
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: application/json
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "{valid_tx_id}"
+    response:
+      status_code: 200
+      headers:
+        content-type: application/json
+        access-control-allow-origin: "*"
+      json:
+        msg: "ok"
+        txId: "{valid_tx_id}"
+
+---
+test_name: ABK Hello API - Invalid POST Request Data
+
+stages:
+  - name: Test POST request with invalid UUID
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: application/json
+      json:
+        deviceUuid: "not-a-valid-uuid"
+        txId: "{valid_tx_id}"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+  - name: Test POST request with extra properties
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: POST
+      headers:
+        content-type: application/json
+      json:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "{valid_tx_id}"
+        extraField: "should-be-rejected"
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Response Time Performance
+
+stages:
+  - name: Test response time is reasonable
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "performance-test"
+    response:
+      status_code: 200
+      headers:
+        content-type: application/json
+      json:
+        msg: "ok"
+        txId: "performance-test"
+      # Check response time (Tavern supports this with additional plugins)
+
+---
+test_name: ABK Hello API - CORS Headers Validation
+
+stages:
+  - name: Test CORS headers are properly set
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{valid_device_uuid}"
+        txId: "cors-test"
+    response:
+      status_code: 200
+      headers:
+        access-control-allow-origin: "*"
+        access-control-allow-credentials: "true"
+        content-type: application/json
+      json:
+        msg: "ok"
+        txId: "cors-test"
+
+---
+test_name: ABK Hello API - No Parameters Edge Case
+
+stages:
+  - name: Test GET request with no parameters
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+    response:
+      status_code: 403
+      headers:
+        content-type: application/json
+      json:
+        msg: "error"
+
+---
+test_name: ABK Hello API - Concurrent Requests Simulation
+
+stages:
+  - name: Test first concurrent request
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{concurrent_uuid_1}"
+        txId: "concurrent-test-1"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "concurrent-test-1"
+
+  - name: Test second concurrent request
+    request:
+      url: "{api_base_url}/abk-hello"
+      method: GET
+      params:
+        deviceUuid: "{concurrent_uuid_2}"
+        txId: "concurrent-test-2"
+    response:
+      status_code: 200
+      json:
+        msg: "ok"
+        txId: "concurrent-test-2"

@@ -1,0 +1,45 @@
+# Common configuration and reusable components for Tavern tests
+
+# Common headers that can be reused across tests
+common_headers: &common_headers
+  content-type: application/json
+  user-agent: "ABK-Hello-Tavern-Tests/1.0"
+
+# Common success response structure
+success_response: &success_response
+  status_code: 200
+  headers:
+    content-type: application/json
+    access-control-allow-origin: "*"
+    access-control-allow-credentials: "true"
+
+# Common error response structure
+error_response: &error_response
+  status_code: 403
+  headers:
+    content-type: application/json
+    access-control-allow-origin: "*"
+  json:
+    msg: "error"
+
+# Common valid request structure for GET
+valid_get_request: &valid_get_request
+  method: GET
+  params:
+    deviceUuid: "{valid_device_uuid}"
+    txId: "{valid_tx_id}"
+
+# Common valid request structure for POST
+valid_post_request: &valid_post_request
+  method: POST
+  headers:
+    <<: *common_headers
+  json:
+    deviceUuid: "{valid_device_uuid}"
+    txId: "{valid_tx_id}"
+
+# Response time constraints (if using Tavern plugins for performance testing)
+performance_constraints: &performance_constraints
+  # These would require additional Tavern plugins
+  # response_time_ms: 5000  # Maximum 5 seconds
+  # warm_response_time_ms: 1000  # Maximum 1 second for warm requests
