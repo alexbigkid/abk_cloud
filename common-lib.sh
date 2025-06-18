@@ -320,6 +320,11 @@ InstallRequiredServerlessPlugins() {
     if [ "$LCL_PLUGIN_LIST" != "" ]; then
         while IFS= read -r PLUGIN; do
             PrintTrace $TRACE_INFO "\n----------------------------------------\n$PLUGIN - installing ...\n----------------------------------------"
+            # Debug: Check node and npm versions
+            echo "Node version: $(node --version 2>&1 || echo 'node not found')"
+            echo "NPM version: $(npm --version 2>&1 || echo 'npm not found')"
+            echo "Serverless version: $(serverless --version 2>&1 || echo 'serverless not found')"
+            echo "PATH: $PATH"
             serverless plugin install --name "$PLUGIN"
             echo "----------------------------------------------------------------------"
         done <<< "$LCL_PLUGIN_LIST"
